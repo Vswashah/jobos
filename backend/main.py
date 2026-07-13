@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import List
 import sys
 sys.path.append("/Users/vishwaashah/jobos/backend")
 from utils.skill_extractor import extract_skills
+from utils.skill_matcher import match_skills
 
 app = FastAPI(
     title="JobOS API",
@@ -19,8 +21,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Your actual skills — we'll move this to DB later
+YOUR_SKILLS = [
+    "Python", "JavaScript", "TypeScript", "React", "Node.js",
+    "FastAPI", "Flask", "PostgreSQL", "MySQL", "Redis",
+    "Docker", "Kubernetes", "AWS", "GitHub Actions", "Git",
+    "LangChain", "LangGraph", "LiteLLM", "Kafka", "Prometheus",
+    "Grafana", "Terraform", "Linux", "Bash", "SQL", "Go" 
+]
+
 class JDRequest(BaseModel):
     jd_text: str
+
+class AnalyzeResponse(BaseModel):
+    extracted_skills: dict
+    skill_match: dict
+    missing_skills: list
+    message: str
 
 @app.get("/")
 async def root():
@@ -33,11 +50,23 @@ async def health():
 @app.post("/api/resumes/analyze")
 async def analyze_jd(request: JDRequest):
     """
-    Paste a job description and get back extracted skills.
+    Step 1: Extract skills from JD
+    Step 2: Compare against your skills
+    Step 3: Return what matches and what's missing
     """
-    skills = extract_skills(request.jd_text)
+    # Step 1 — Extract skills from JD
+    extracted = extract_skills(request.jd_text)
+    
+    # Step 2 — Compare against your skills
+    match = match_skills(
+        extracted_skills=extracted["all_skills"],
+        user_skills=YOUR_SKILLS
+    )
+    
+    # Step 3 — Build response
     return {
-        "jd_received": True,
-        "extracted_skills": skills,
-        "message": f"Found {skills['total_found']} skills in this JD"
+        "extracted_skills": extracted,
+        "skill_match": match,
+        "missing_skills": match["missing"],
+        "message": match["summary"]
     }

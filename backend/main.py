@@ -37,7 +37,8 @@ YOUR_SKILLS = [
     "FastAPI", "Flask", "PostgreSQL", "MySQL", "Redis",
     "Docker", "Kubernetes", "AWS", "GitHub Actions", "Git",
     "LangChain", "LangGraph", "LiteLLM", "Kafka", "Prometheus",
-    "Grafana", "Terraform", "Linux", "Bash", "SQL", "Go"
+    "Grafana", "Terraform", "Linux", "Bash", "SQL", "Go",
+    "pgvector", "RAG", "Ollama", "FastAPI", "pgvector",
 ]
 
 YOUR_PROJECTS = [

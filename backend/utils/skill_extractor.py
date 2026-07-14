@@ -19,6 +19,11 @@ KNOWN_SKILLS = {
     ],
     "tools": [
         "kafka", "rabbitmq", "prometheus", "grafana", "nginx", "graphql"
+    ],
+    "ai_ml": [
+        "pytorch", "tensorflow", "scikit-learn", "langchain", "langgraph",
+        "openai", "hugging face", "mlflow", "ray", "spark",
+        "pgvector", "rag", "llm", "ollama", "litellm"
     ]
 }
 

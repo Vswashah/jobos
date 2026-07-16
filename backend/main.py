@@ -12,6 +12,7 @@ from utils.project_scorer import select_projects
 from utils.experience_selector import select_experience
 from services.resume_generator import (
     generate_resume,
+    generate_resume_autofit,
     DEFAULT_PROFILE,
     DEFAULT_EDUCATION,
     DEFAULT_EXPERIENCE,
@@ -231,7 +232,15 @@ async def generate_pdf_endpoint(request: JDRequest):
         for s in ["pytorch", "scikit-learn", "langchain", "llm", "machine learning"]
     ) or "research" in (request.team_focus or "").lower()
 
-    generate_resume(
+    # Select relevant experience
+    selected_experience = select_experience(
+        experience=DEFAULT_EXPERIENCE,
+        extracted_skills=extracted["all_skills"],
+        domain=projects_result["selected"][0].get("domains", ["fullstack"])[0] if projects_result["selected"] else "fullstack",
+        max_jobs=3
+    )
+
+    generate_resume_autofit(
         profile=DEFAULT_PROFILE,
         skills=SKILLS_TEMPLATE,
         experience=selected_experience,
@@ -281,7 +290,7 @@ async def generate_pdf_endpoint(request: JDRequest):
     docx_path = f"/tmp/jobos_resumes/Vishwaa_Shah_{company}.docx"
     pdf_path = f"/tmp/jobos_resumes/Vishwaa_Shah_{company}.pdf"
 
-    generate_resume(
+    generate_resume_autofit(
         profile=DEFAULT_PROFILE,
         skills=SKILLS_TEMPLATE,
         experience=selected_experience,

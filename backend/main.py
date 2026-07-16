@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 import sys
 import os
+from api.routes.jobs import router as jobs_router
 sys.path.append("/Users/vishwaashah/jobos/backend")
 from utils.skill_extractor import extract_skills
 from utils.skill_matcher import match_skills
@@ -26,11 +27,15 @@ from services.db_service import (
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
 
+
 app = FastAPI(
     title="JobOS API",
     description="Multi-agent AI job search system for international students",
     version="1.0.0",
 )
+
+# register routers
+app.include_router(jobs_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,

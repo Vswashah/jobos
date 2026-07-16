@@ -18,6 +18,13 @@ from services.resume_generator import (
     DEFAULT_EXPERIENCE,
     DEFAULT_RESEARCH,
 )
+from db.database import get_db, init_db
+from services.db_service import (
+    get_user_skills, get_user_projects, get_user_experience,
+    get_user_profile, save_job, save_resume, log_activity
+)
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends
 
 app = FastAPI(
     title="JobOS API",
@@ -102,15 +109,16 @@ SKILLS_TEMPLATE = {
 }
 
 
-def select_experience_for_resume(extracted_skills, domain, max_jobs=3):
+def select_experience_for_resume(extracted_skills, domain, max_jobs=3, experience=None):
+    exp_list = experience if experience else DEFAULT_EXPERIENCE
     selected_experience = select_experience(
-        experience=DEFAULT_EXPERIENCE,
+        experience=exp_list,
         extracted_skills=extracted_skills,
         domain=domain,
         max_jobs=max_jobs,
     )
     if len(selected_experience) < max_jobs:
-        selected_experience = DEFAULT_EXPERIENCE[:max_jobs]
+        selected_experience = exp_list[:max_jobs]
     return selected_experience
 
 
@@ -129,15 +137,33 @@ async def health():
     return {"status": "healthy", "version": "1.0.0"}
 
 @app.post("/api/resumes/analyze")
-async def analyze_jd(request: JDRequest):
+async def analyze_jd(request: JDRequest, db: AsyncSession = Depends(get_db)):
     """Analyze JD — extract skills, match profile, rank projects"""
+    # Fetch from DB
+    user_skills = await get_user_skills(db)
+    user_projects = await get_user_projects(db)
+
     extracted = extract_skills(request.jd_text)
-    match = match_skills(extracted["all_skills"], YOUR_SKILLS)
+    match = match_skills(extracted["all_skills"], user_skills)
     projects = select_projects(
-        projects=YOUR_PROJECTS,
+        projects=user_projects,
         extracted_skills=extracted["all_skills"],
         team_focus=request.team_focus
     )
+
+    # Save job to DB
+    await save_job(
+        db,
+        company=request.company or "Unknown",
+        role=request.role or "Unknown",
+        jd_text=request.jd_text,
+        required_skills=extracted["all_skills"],
+        preferred_skills=[],
+        domain=projects["selected"][0].get("domains", ["unknown"])[0] if projects["selected"] else "unknown",
+        team_focus=request.team_focus or "",
+    )
+    await log_activity(db, "job_analyzed", "job", metadata={"company": request.company, "role": request.role})
+
     return {
         "extracted_skills": extracted,
         "skill_match": match,
@@ -146,42 +172,45 @@ async def analyze_jd(request: JDRequest):
         "message": match["summary"]
     }
 
+
 @app.post("/api/resumes/generate")
-async def generate_resume_endpoint(request: JDRequest):
-    """
-    Full pipeline — analyze JD and generate tailored DOCX resume.
-    Returns the file for download.
-    """
+async def generate_resume_endpoint(request: JDRequest, db: AsyncSession = Depends(get_db)):
+    """Full pipeline — analyze JD and generate tailored DOCX resume."""
+    # Fetch from DB
+    user_skills = await get_user_skills(db)
+    user_projects = await get_user_projects(db)
+    user_experience = await get_user_experience(db)
+    user_profile = await get_user_profile(db)
+
     # Step 1 — Extract and match
     extracted = extract_skills(request.jd_text)
-    match = match_skills(extracted["all_skills"], YOUR_SKILLS)
+    match = match_skills(extracted["all_skills"], user_skills)
     projects_result = select_projects(
-        projects=YOUR_PROJECTS,
+        projects=user_projects,
         extracted_skills=extracted["all_skills"],
         team_focus=request.team_focus,
         max_projects=3
     )
 
-    # Step 2 — Pick top 3 projects
     selected_projects = projects_result["selected"]
     selected_experience = select_experience_for_resume(
         extracted_skills=extracted["all_skills"],
-        domain=projects_result["selected"][0].get("domains", ["fullstack"])[0] if projects_result["selected"] else "fullstack",
+        domain=selected_projects[0].get("domains", ["fullstack"])[0] if selected_projects else "fullstack",
+        experience=user_experience,
         max_jobs=3,
     )
 
-    # Step 3 — Generate resume file
+    # Step 2 — Generate resume file
     filename = f"Vishwaa_Shah_{request.company.replace(' ', '_')}.docx"
     output_path = f"/tmp/jobos_resumes/{filename}"
 
-    # Include research for AI/ML/security roles
     include_research = any(
         s in extracted["all_skills"]
         for s in ["pytorch", "scikit-learn", "langchain", "llm", "machine learning"]
     ) or "research" in (request.team_focus or "").lower()
 
     generate_resume(
-        profile=DEFAULT_PROFILE,
+        profile=user_profile or DEFAULT_PROFILE,
         skills=SKILLS_TEMPLATE,
         experience=selected_experience,
         projects=selected_projects,
@@ -192,14 +221,18 @@ async def generate_resume_endpoint(request: JDRequest):
         role_name=request.role,
     )
 
-    # Step 4 — Return file
+    # Save to DB
+    await save_resume(db, job_id=None, file_path=output_path,
+        skills_included=match["matching"],
+        projects_selected=[p["name"] for p in selected_projects],
+        experience_selected=[e["title"] for e in selected_experience])
+    await log_activity(db, "resume_generated", "resume", metadata={"company": request.company})
+
     return FileResponse(
         path=output_path,
         filename=filename,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
-
-
 @app.post("/api/resumes/generate-pdf")
 async def generate_pdf_endpoint(request: JDRequest):
     """
@@ -264,14 +297,21 @@ async def generate_pdf_endpoint(request: JDRequest):
 
 
 @app.post("/api/resumes/generate-pdf")
-async def generate_pdf_endpoint(request: JDRequest):
-    """Generate tailored PDF resume from JD"""
+async def generate_pdf_endpoint(request: JDRequest, db: AsyncSession = Depends(get_db)):
+    """Full pipeline — analyze JD and generate tailored PDF resume."""
     import subprocess
+
+    # Fetch from DB
+    user_skills = await get_user_skills(db)
+    user_projects = await get_user_projects(db)
+    user_experience = await get_user_experience(db)
+    user_profile = await get_user_profile(db)
 
     # Step 1 — Extract and match
     extracted = extract_skills(request.jd_text)
+    match = match_skills(extracted["all_skills"], user_skills)
     projects_result = select_projects(
-        projects=YOUR_PROJECTS,
+        projects=user_projects,
         extracted_skills=extracted["all_skills"],
         team_focus=request.team_focus,
         max_projects=3
@@ -280,7 +320,8 @@ async def generate_pdf_endpoint(request: JDRequest):
     selected_projects = projects_result["selected"]
     selected_experience = select_experience_for_resume(
         extracted_skills=extracted["all_skills"],
-        domain=projects_result["selected"][0].get("domains", ["fullstack"])[0] if projects_result["selected"] else "fullstack",
+        domain=selected_projects[0].get("domains", ["fullstack"])[0] if selected_projects else "fullstack",
+        experience=user_experience,
         max_jobs=3,
     )
 
@@ -290,27 +331,38 @@ async def generate_pdf_endpoint(request: JDRequest):
     docx_path = f"/tmp/jobos_resumes/Vishwaa_Shah_{company}.docx"
     pdf_path = f"/tmp/jobos_resumes/Vishwaa_Shah_{company}.pdf"
 
+    include_research = any(
+        s in extracted["all_skills"]
+        for s in ["pytorch", "scikit-learn", "langchain", "llm", "machine learning"]
+    ) or "research" in (request.team_focus or "").lower()
+
     generate_resume_autofit(
-        profile=DEFAULT_PROFILE,
+        profile=user_profile or DEFAULT_PROFILE,
         skills=SKILLS_TEMPLATE,
         experience=selected_experience,
         projects=selected_projects,
         education=DEFAULT_EDUCATION,
+        research=DEFAULT_RESEARCH if include_research else None,
         output_path=docx_path,
         company_name=request.company,
         role_name=request.role,
     )
 
-    # Step 3 — Convert to PDF using LibreOffice
+    # Step 3 — Convert to PDF
     subprocess.run([
         "/Applications/LibreOffice.app/Contents/MacOS/soffice",
-        "--headless",
-        "--convert-to", "pdf",
+        "--headless", "--convert-to", "pdf",
         "--outdir", "/tmp/jobos_resumes/",
         docx_path
     ], check=True)
 
-    # Step 4 — Return PDF
+    # Step 4 — Save to DB and return
+    await save_resume(db, job_id=None, file_path=pdf_path,
+        skills_included=match["matching"],
+        projects_selected=[p["name"] for p in selected_projects],
+        experience_selected=[e["title"] for e in selected_experience])
+    await log_activity(db, "resume_generated", "resume", metadata={"company": request.company, "format": "pdf"})
+
     return FileResponse(
         path=pdf_path,
         filename=f"Vishwaa_Shah_{company}.pdf",

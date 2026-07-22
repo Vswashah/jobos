@@ -74,3 +74,44 @@ def test_analyze_jd_creates_job_and_status_can_be_updated(client):
 def test_analyze_jd_requires_text_field(client):
     res = client.post("/api/resumes/analyze", json={"company": "NoText Co"})
     assert res.status_code == 422
+
+
+def test_analyze_jd_does_not_crash_when_top_project_has_empty_domains(client):
+    """
+    Regression test: a project with domains=[] (the field default — not
+    every project has one set) used to crash the whole request with
+    IndexError, because main.py did
+    `project.get("domains", ["fallback"])[0]` — .get()'s default only
+    applies when the *key* is missing, not when the value is an empty list.
+    """
+    unique_name = f"EmptyDomainsProject-{uuid.uuid4().hex[:8]}"
+    # Real skills extract_skills() recognizes, chosen because none of the
+    # seeded demo projects (Fleet Telemetry/Trackly/Phantom/AEGIS) list them
+    # in their stack. Three matches (24 points) beats Trackly's is_live bonus
+    # (20 points, its only score here since its stack doesn't match either) —
+    # guarantees this project scores highest and is picked.
+    unmatched_skills = ["MongoDB", "Azure", "Cassandra"]
+
+    create_res = client.post("/api/profile/projects", json={
+        "name": unique_name,
+        "description": "Regression test project",
+        "stack": unmatched_skills,
+        "domains": [],
+        "highlights": [],
+    })
+    assert create_res.status_code == 200
+    project_id = create_res.json()["id"]
+
+    try:
+        analyze_res = client.post("/api/resumes/analyze", json={
+            "jd_text": "Experience with MongoDB, Azure, and Cassandra required.",
+            "company": "RegressionCo",
+            "role": "Engineer",
+            "team_focus": "",
+        })
+        assert analyze_res.status_code == 200
+        body = analyze_res.json()
+        top_project = body["recommended_projects"]["selected"][0]
+        assert top_project["name"] == unique_name
+    finally:
+        client.delete(f"/api/profile/projects/{project_id}")

@@ -111,7 +111,7 @@ async def analyze_jd(request: JDRequest, db: AsyncSession = Depends(get_db)):
         jd_text=request.jd_text,
         required_skills=extracted["all_skills"],
         preferred_skills=[],
-        domain=projects["selected"][0].get("domains", ["unknown"])[0] if projects["selected"] else "unknown",
+        domain=(projects["selected"][0].get("domains") or ["unknown"])[0] if projects["selected"] else "unknown",
         team_focus=request.team_focus or "",
     )
     await log_activity(db, "job_analyzed", "job", metadata={"company": request.company, "role": request.role})
@@ -147,7 +147,7 @@ async def generate_resume_endpoint(request: JDRequest, db: AsyncSession = Depend
     selected_projects = projects_result["selected"]
     selected_experience = select_experience_for_resume(
         extracted_skills=extracted["all_skills"],
-        domain=selected_projects[0].get("domains", ["fullstack"])[0] if selected_projects else "fullstack",
+        domain=(selected_projects[0].get("domains") or ["fullstack"])[0] if selected_projects else "fullstack",
         experience=user_experience,
         max_jobs=3,
     )
@@ -209,7 +209,7 @@ async def generate_pdf_endpoint(request: JDRequest, db: AsyncSession = Depends(g
     selected_projects = projects_result["selected"]
     selected_experience = select_experience_for_resume(
         extracted_skills=extracted["all_skills"],
-        domain=selected_projects[0].get("domains", ["fullstack"])[0] if selected_projects else "fullstack",
+        domain=(selected_projects[0].get("domains") or ["fullstack"])[0] if selected_projects else "fullstack",
         experience=user_experience,
         max_jobs=3,
     )

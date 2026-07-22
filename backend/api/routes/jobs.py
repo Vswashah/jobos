@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from db.database import get_db
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+VALID_STATUSES = {"found", "applied", "interviewing", "offered", "rejected"}
 
 @router.get("/")
 async def get_jobs(db: AsyncSession = Depends(get_db)):
@@ -38,12 +40,17 @@ async def get_jobs(db: AsyncSession = Depends(get_db)):
 @router.patch("/{job_id}/status")
 async def update_job_status(job_id: str, status: str, db: AsyncSession = Depends(get_db)):
     """Update job status — found/applied/interviewing/offered/rejected"""
-    await db.execute(text("""
-        UPDATE jobs SET status = :status, 
-        applied_at = CASE WHEN :status = 'applied' THEN NOW() ELSE applied_at END
+    if status not in VALID_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {sorted(VALID_STATUSES)}")
+
+    result = await db.execute(text("""
+        UPDATE jobs SET status = :status,
+        applied_at = CASE WHEN CAST(:status AS VARCHAR) = 'applied' THEN NOW() ELSE applied_at END
         WHERE id = :job_id
     """), {"status": status, "job_id": job_id})
     await db.commit()
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Job not found")
     return {"message": "Status updated", "status": status}
 
 

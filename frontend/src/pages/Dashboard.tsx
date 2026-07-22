@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { API_BASE } from '../config'
 
 interface Stats {
   total_analyzed: number
@@ -21,7 +22,7 @@ export default function Dashboard() {
   const [activity, setActivity] = useState<Activity[]>([])
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/jobs/analytics')
+    fetch(`${API_BASE}/api/jobs/analytics`)
       .then(r => r.json())
       .then(data => {
         setStats(data.stats)

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import Toast from '../components/Toast'
+import { API_BASE } from '../config'
 
 interface Job {
   id: string
@@ -24,9 +26,10 @@ const STATUS_OPTIONS = ['found', 'applied', 'interviewing', 'offered', 'rejected
 export default function Resumes() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
+  const [toast, setToast] = useState<{ message: string; kind?: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/jobs/')
+    fetch(`${API_BASE}/api/jobs/`)
       .then(r => r.json())
       .then(data => {
         setJobs(data.jobs || [])
@@ -36,10 +39,17 @@ export default function Resumes() {
   }, [])
 
   const updateStatus = async (jobId: string, status: string) => {
-    await fetch(`http://localhost:8000/api/jobs/${jobId}/status?status=${status}`, {
-      method: 'PATCH'
-    })
+    const prevJobs = jobs
     setJobs(jobs.map(j => j.id === jobId ? { ...j, status } : j))
+    try {
+      const res = await fetch(`${API_BASE}/api/jobs/${jobId}/status?status=${status}`, {
+        method: 'PATCH'
+      })
+      if (!res.ok) throw new Error('Failed to update status')
+    } catch {
+      setJobs(prevJobs)
+      setToast({ message: 'Failed to update status', kind: 'error' })
+    }
   }
 
   const formatDate = (dateStr: string) => {
@@ -125,6 +135,8 @@ export default function Resumes() {
           </table>
         )}
       </div>
+
+      {toast && <Toast message={toast.message} kind={toast.kind} onDone={() => setToast(null)} />}
     </div>
   )
 }

@@ -16,18 +16,10 @@ services:
         value: https://jobos-frontend.onrender.com
       - key: SECRET_KEY
         generateValue: true
-      - key: GROQ_API_KEY
-        sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: AWS_ACCESS_KEY_ID
-        sync: false
-      - key: AWS_SECRET_ACCESS_KEY
-        sync: false
-      - key: AWS_BUCKET_NAME
-        sync: false
-      - key: AWS_REGION
-        value: us-east-1
+      # GROQ_API_KEY, GEMINI_API_KEY, AWS_* aren't read by any code yet —
+      # add them in the dashboard's Environment tab later if you wire up
+      # those features. Declaring them here as sync:false would block
+      # blueprint deploys until every one has a value.
 
   - type: web
     name: jobos-frontend

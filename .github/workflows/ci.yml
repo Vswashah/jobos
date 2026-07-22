@@ -47,6 +47,11 @@ jobs:
         run: |
           PGPASSWORD=jobos123 psql -h localhost -U jobos -d jobos -f backend/db/migrations/001_initial.sql
 
+      - name: Seed database
+        run: |
+          cd backend
+          python -m db.seed
+
       - name: Run tests
         run: |
           cd backend

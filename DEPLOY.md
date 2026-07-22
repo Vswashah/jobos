@@ -1,26 +1,28 @@
-# Deploying JobOS to Render
+# Deploying JobOS to Render (+ Neon for Postgres)
+
+Backend and frontend run on Render's free tier. The database runs on
+[Neon](https://neon.tech) instead of Render's free Postgres, because Render
+deletes free databases after 30 days — Neon's free tier has no such
+expiration (it scales to zero when idle and auto-wakes on the next query).
 
 ## 1. Push this repo to GitHub
 Render deploys from a GitHub repo, so commit and push these changes first.
 
-## 2. Create the Blueprint
-In the Render dashboard: **New → Blueprint**, pick this repo. Render will read
-`render.yaml` at the root and propose three resources:
+## 2. Create a Neon project
+Sign up at [neon.tech](https://neon.tech) (free, no card required) → **New
+Project**. Neon has pgvector built in already — no extension setup needed.
+Copy the connection string it gives you (starts with `postgres://` or
+`postgresql://`; the app normalizes either automatically).
 
-- `jobos-db` — managed Postgres
+## 3. Create the Render Blueprint
+In the Render dashboard: **New → Blueprint**, pick this repo. Render will read
+`render.yaml` at the root and propose two resources:
+
 - `jobos-backend` — Docker web service (FastAPI + LibreOffice for PDF export)
 - `jobos-frontend` — static site (Vite build)
 
-Click **Apply**.
-
-## 3. Confirm pgvector support on the database
-The schema runs `CREATE EXTENSION IF NOT EXISTS vector;` (used for future JD
-embedding search). Render's managed Postgres supports enabling `vector` from
-the database's **Extensions** tab in the dashboard — enable it there before
-running migrations. If it's not available on your plan, the app still works
-fine without it as long as you drop that `CREATE EXTENSION` line and the
-`jd_embedding` column from `db/migrations/001_initial.sql` (nothing currently
-reads that column).
+Click **Apply**. It'll prompt you for `DATABASE_URL` since it's marked
+`sync: false` in `render.yaml` — paste in the Neon connection string here.
 
 ## 4. Run migrations + seed once
 Render web services expose a **Shell** tab. Open one for `jobos-backend` and run:
@@ -55,6 +57,15 @@ in use — the app runs without them, they're just unset otherwise.
 - `https://<frontend-url>` → loads the dashboard, and My Profile shows real
   skills/projects (confirms the frontend is talking to the right backend and
   the DB was seeded)
+
+## Free tier tradeoffs
+- **Render backend (free web service):** spins down after 15 min idle. The
+  first request after that takes ~30-50s to wake up; nothing breaks, it's
+  just a cold start.
+- **Neon database:** scales to zero when idle too, but wakes in ~1s on the
+  next query — no manual step, no expiration, data is never deleted.
+- **Render frontend (static site):** free forever, no spin-down — it's just
+  static files.
 
 ## Local Docker (already verified working)
 

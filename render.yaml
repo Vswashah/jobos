@@ -1,21 +1,17 @@
-databases:
-  - name: jobos-db
-    plan: starter
-    postgresMajorVersion: "16"
-
 services:
   - type: web
     name: jobos-backend
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    plan: starter
+    plan: free
     healthCheckPath: /health
     envVars:
+      # Set this manually in the Render dashboard to your Neon connection
+      # string (see DEPLOY.md) — not a Render-managed database, so it can't
+      # be wired via fromDatabase.
       - key: DATABASE_URL
-        fromDatabase:
-          name: jobos-db
-          property: connectionString
+        sync: false
       - key: CORS_ORIGINS
         value: https://jobos-frontend.onrender.com
       - key: SECRET_KEY

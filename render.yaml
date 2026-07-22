@@ -13,7 +13,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: CORS_ORIGINS
-        value: https://jobos-frontend.onrender.com
+        value: https://jobos-frontend-5de2.onrender.com
       - key: SECRET_KEY
         generateValue: true
       # GROQ_API_KEY, GEMINI_API_KEY, AWS_* aren't read by any code yet —

@@ -324,8 +324,16 @@ def generate_resume_autofit(profile, skills, experience, projects, education, ou
                 try: os.remove(f)
                 except: pass
 
+    # Each iteration cold-starts LibreOffice to render+measure a candidate —
+    # expensive under constrained CPU (e.g. Render's free tier: ~7-9s per
+    # invocation observed there vs ~0.2s locally). 10 iterations reliably hit
+    # 60-70s total, well past typical platform gateway timeouts, causing 502s
+    # in production. 2 iterations (measured ~28s for the full request,
+    # including the final real conversion) still reliably converges to a
+    # correct one-page fit; 1 iteration is fast (~22s) but sometimes doesn't
+    # converge and ships a 2-page resume, which defeats the feature's point.
     lo, hi, best = 0.5, 1.0, 0.75
-    for _ in range(10):
+    for _ in range(2):
         mid = (lo + hi) / 2
         pages, rem = try_mult(mid)
         if pages == 1 and rem > 28:  # > 10mm, increase spacing

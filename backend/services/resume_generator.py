@@ -289,10 +289,13 @@ DEFAULT_RESEARCH = [
 ]
 
 
-import subprocess as _sp
-import os as _os
+import shutil as _shutil
 
-LIBREOFFICE = "/Applications/LibreOffice.app/Contents/MacOS/soffice"
+LIBREOFFICE = (
+    _shutil.which("soffice")
+    or _shutil.which("libreoffice")
+    or "/Applications/LibreOffice.app/Contents/MacOS/soffice"
+)
 
 def generate_resume_autofit(profile, skills, experience, projects, education, output_path, company_name="", role_name="", research=None):
     """Auto-fits resume to exactly one page using binary search on spacing multiplier."""
@@ -336,41 +339,6 @@ def generate_resume_autofit(profile, skills, experience, projects, education, ou
     import sys; print(f'Autofit: best multiplier={best:.3f}', file=sys.stderr)
 
     _generate_with_multiplier(profile, skills, experience, projects, education, output_path, research=research, multiplier=best)
-    return output_path
-    """Auto-fits resume to exactly one page using binary search on spacing."""
-    import fitz
-    output_dir = _os.path.dirname(output_path)
-    _os.makedirs(output_dir, exist_ok=True)
-
-    def try_mult(m):
-        tmp = output_path.replace(".docx", f"_tmp_{m:.3f}.docx")
-        tmp_pdf = tmp.replace(".docx", ".pdf")
-        try:
-            generate_resume(profile, skills, experience, projects, education, tmp, research=research)
-            _sp.run([LIBREOFFICE, "--headless", "--convert-to", "pdf", "--outdir", output_dir, tmp], capture_output=True)
-            doc = fitz.open(tmp_pdf)
-            pages = len(doc)
-            remaining = (doc[0].rect.height - max(b[3] for b in doc[0].get_text("blocks"))) if pages == 1 else -1
-            doc.close()
-            return pages, remaining
-        except:
-            return 2, -1
-        finally:
-            for f in [tmp, tmp_pdf]:
-                try: _os.remove(f)
-                except: pass
-
-    lo, hi, best = 0.5, 1.6, 1.0
-    for _ in range(8):
-        mid = (lo + hi) / 2
-        pages, rem = try_mult(mid)
-        if pages == 1 and rem > 20:
-            best = mid
-            lo = mid
-        else:
-            hi = mid
-
-    generate_resume(profile, skills, experience, projects, education, output_path, research=research)
     return output_path
 
 

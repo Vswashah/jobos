@@ -14,11 +14,11 @@ interface Job {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  found: 'bg-gray-100 text-gray-600',
-  applied: 'bg-blue-50 text-blue-700',
-  interviewing: 'bg-purple-50 text-purple-700',
-  offered: 'bg-green-50 text-green-700',
-  rejected: 'bg-red-50 text-red-700',
+  found: 'bg-cream-200 text-ink-900/60',
+  applied: 'bg-gold-300/40 text-ink-900',
+  interviewing: 'bg-violet-100 text-violet-700',
+  offered: 'bg-emerald-100 text-emerald-700',
+  rejected: 'bg-red-100 text-red-700',
 }
 
 const STATUS_OPTIONS = ['found', 'applied', 'interviewing', 'offered', 'rejected']
@@ -59,73 +59,73 @@ export default function Resumes() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Application Tracker</h2>
-        <p className="text-gray-500 mt-1">Every JD you've analyzed — track your pipeline</p>
+        <h2 className="text-3xl font-extrabold text-ink-900 tracking-tight">Application Tracker</h2>
+        <p className="text-ink-900/50 mt-1">Every JD you've analyzed — track your pipeline</p>
       </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-5 gap-3 mb-6">
         {STATUS_OPTIONS.map(status => (
-          <div key={status} className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-            <div className="text-2xl font-bold text-gray-900">
+          <div key={status} className="bg-white rounded-2xl border border-ink-900/5 p-4 text-center shadow-sm">
+            <div className="text-2xl font-extrabold text-ink-900">
               {jobs.filter(j => j.status === status).length}
             </div>
-            <div className="text-xs text-gray-500 mt-1 capitalize">{status}</div>
+            <div className="text-xs text-ink-900/50 mt-1 capitalize">{status}</div>
           </div>
         ))}
       </div>
 
       {/* Jobs table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-ink-900/5 overflow-hidden shadow-sm">
         {loading ? (
-          <div className="p-12 text-center text-gray-400">Loading...</div>
+          <div className="p-12 text-center text-ink-900/30">Loading...</div>
         ) : jobs.length === 0 ? (
           <div className="p-12 text-center">
             <div className="text-4xl mb-3">📋</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">No jobs yet</h3>
-            <p className="text-gray-500 text-sm">Analyze a JD to start tracking</p>
+            <h3 className="text-lg font-bold text-ink-900 mb-1">No jobs yet</h3>
+            <p className="text-ink-900/50 text-sm">Analyze a JD to start tracking</p>
           </div>
         ) : (
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-cream-100/60 border-b border-ink-900/5">
               <tr>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Company</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Role</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Skills</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-900/40 uppercase">Company</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-900/40 uppercase">Role</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-900/40 uppercase">Skills</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-900/40 uppercase">Date</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-900/40 uppercase">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-ink-900/5">
               {jobs.map(job => (
-                <tr key={job.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={job.id} className="hover:bg-cream-100/40 transition-colors">
                   <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900">{job.company}</div>
+                    <div className="font-semibold text-ink-900">{job.company}</div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-600">{job.role}</div>
+                    <div className="text-sm text-ink-900/60">{job.role}</div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
                       {(job.required_skills || []).slice(0, 4).map(s => (
-                        <span key={s} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{s}</span>
+                        <span key={s} className="px-2 py-0.5 bg-gold-300/30 text-ink-900/80 rounded-full text-xs">{s}</span>
                       ))}
                       {job.required_skills?.length > 4 && (
-                        <span className="text-xs text-gray-400">+{job.required_skills.length - 4}</span>
+                        <span className="text-xs text-ink-900/40">+{job.required_skills.length - 4}</span>
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
+                  <td className="px-6 py-4 text-sm text-ink-900/50">
                     {formatDate(job.found_at)}
                   </td>
                   <td className="px-6 py-4">
                     <select
                       value={job.status}
                       onChange={e => updateStatus(job.id, e.target.value)}
-                      className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer ${STATUS_COLORS[job.status] || STATUS_COLORS.found}`}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-full border-0 cursor-pointer ${STATUS_COLORS[job.status] || STATUS_COLORS.found}`}
                     >
                       {STATUS_OPTIONS.map(s => (
-                        <option key={s} value={s} className="bg-white text-gray-900 capitalize">{s}</option>
+                        <option key={s} value={s} className="bg-white text-ink-900 capitalize">{s}</option>
                       ))}
                     </select>
                   </td>

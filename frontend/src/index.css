@@ -1,1 +1,20 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-cream-50: #fdfbf5;
+  --color-cream-100: #faf5e9;
+  --color-cream-200: #f4ecd6;
+  --color-ink-900: #17160f;
+  --color-ink-800: #24221a;
+  --color-ink-700: #34311f;
+  --color-gold-300: #f6d675;
+  --color-gold-400: #f2c94c;
+  --color-gold-500: #e8b923;
+}
+
+body {
+  background: linear-gradient(135deg, #dcdfe6 0%, #eee6d3 45%, #f6dfa8 100%);
+  min-height: 100vh;
+}

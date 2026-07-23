@@ -89,53 +89,53 @@ export default function AnalyzeJD() {
   return (
     <div className="p-8 max-w-5xl">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Analyze Job Description</h2>
-        <p className="text-gray-500 mt-1">Paste a JD to get skill match and a tailored resume</p>
+        <h2 className="text-3xl font-extrabold text-ink-900 tracking-tight">Analyze Job Description</h2>
+        <p className="text-ink-900/50 mt-1">Paste a JD to get skill match and a tailored resume</p>
       </div>
 
       {/* Input */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 mb-6 shadow-sm">
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+            <label className="block text-sm font-semibold text-ink-900/70 mb-1">Company</label>
             <input
               type="text"
               value={company}
               onChange={e => setCompany(e.target.value)}
               placeholder="Rivian, Google..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <label className="block text-sm font-semibold text-ink-900/70 mb-1">Role</label>
             <input
               type="text"
               value={role}
               onChange={e => setRole(e.target.value)}
               placeholder="Software Engineer Intern"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Team Focus</label>
+            <label className="block text-sm font-semibold text-ink-900/70 mb-1">Team Focus</label>
             <input
               type="text"
               value={teamFocus}
               onChange={e => setTeamFocus(e.target.value)}
               placeholder="vehicle telemetry, AI platform..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Job Description</label>
+          <label className="block text-sm font-semibold text-ink-900/70 mb-1">Job Description</label>
           <textarea
             value={jdText}
             onChange={e => setJdText(e.target.value)}
             placeholder="Paste the full job description here..."
             rows={8}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            className="w-full px-4 py-3 border border-ink-900/10 bg-cream-100/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-gold-400 resize-none"
           />
         </div>
 
@@ -143,7 +143,7 @@ export default function AnalyzeJD() {
           <button
             onClick={analyze}
             disabled={loading || !jdText.trim()}
-            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-2.5 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? '⏳ Analyzing...' : '⚡ Analyze JD'}
           </button>
@@ -151,7 +151,7 @@ export default function AnalyzeJD() {
             <button
               onClick={downloadResume}
               disabled={downloading}
-              className="px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-700 disabled:opacity-50 transition-colors"
+              className="px-6 py-2.5 bg-ink-900 text-cream-50 rounded-full text-sm font-bold hover:bg-ink-800 disabled:opacity-50 transition-colors"
             >
               {downloading ? '⏳ Generating...' : '⬇ Download Resume PDF'}
             </button>
@@ -166,41 +166,41 @@ export default function AnalyzeJD() {
         <div className="space-y-4">
 
           {/* Match Score */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-2xl border border-ink-900/5 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">Skill Match</h3>
-              <span className={`text-3xl font-bold ${
-                result.skill_match.match_percentage >= 80 ? 'text-green-600' :
-                result.skill_match.match_percentage >= 60 ? 'text-amber-600' : 'text-red-600'
+              <h3 className="text-lg font-bold text-ink-900">Skill Match</h3>
+              <span className={`text-3xl font-extrabold ${
+                result.skill_match.match_percentage >= 80 ? 'text-emerald-600' :
+                result.skill_match.match_percentage >= 60 ? 'text-gold-500' : 'text-red-500'
               }`}>
                 {result.skill_match.match_percentage}%
               </span>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-2 mb-5">
+            <div className="w-full bg-cream-200 rounded-full h-2 mb-5">
               <div
                 className={`h-2 rounded-full transition-all ${
-                  result.skill_match.match_percentage >= 80 ? 'bg-green-500' :
-                  result.skill_match.match_percentage >= 60 ? 'bg-amber-500' : 'bg-red-500'
+                  result.skill_match.match_percentage >= 80 ? 'bg-emerald-500' :
+                  result.skill_match.match_percentage >= 60 ? 'bg-gold-400' : 'bg-red-500'
                 }`}
                 style={{ width: `${result.skill_match.match_percentage}%` }}
               />
             </div>
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">✅ You have ({result.skill_match.matching.length})</p>
+                <p className="text-sm font-semibold text-ink-900/70 mb-2">✅ You have ({result.skill_match.matching.length})</p>
                 <div className="flex flex-wrap gap-1.5">
                   {result.skill_match.matching.map(s => (
-                    <span key={s} className="px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded text-xs">{s}</span>
+                    <span key={s} className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs">{s}</span>
                   ))}
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">❌ Missing ({result.skill_match.missing.length})</p>
+                <p className="text-sm font-semibold text-ink-900/70 mb-2">❌ Missing ({result.skill_match.missing.length})</p>
                 <div className="flex flex-wrap gap-1.5">
                   {result.skill_match.missing.length === 0 ? (
-                    <span className="text-sm text-gray-400">None — perfect match!</span>
+                    <span className="text-sm text-ink-900/30">None — perfect match!</span>
                   ) : result.skill_match.missing.map(s => (
-                    <span key={s} className="px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded text-xs">{s}</span>
+                    <span key={s} className="px-2.5 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs">{s}</span>
                   ))}
                 </div>
               </div>
@@ -208,17 +208,17 @@ export default function AnalyzeJD() {
           </div>
 
           {/* Skills Found */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-white rounded-2xl border border-ink-900/5 p-6 shadow-sm">
+            <h3 className="text-lg font-bold text-ink-900 mb-4">
               Skills Found in JD ({result.extracted_skills.total_found})
             </h3>
             <div className="space-y-2">
               {Object.entries(result.extracted_skills.by_category).map(([cat, skills]) => (
                 <div key={cat} className="flex items-start gap-3">
-                  <span className="text-sm font-medium text-gray-400 w-24 capitalize shrink-0 pt-0.5">{cat}</span>
+                  <span className="text-sm font-semibold text-ink-900/40 w-24 capitalize shrink-0 pt-0.5">{cat}</span>
                   <div className="flex flex-wrap gap-1.5">
                     {skills.map(s => (
-                      <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs">{s}</span>
+                      <span key={s} className="px-2.5 py-0.5 bg-gold-300/30 text-ink-900/80 border border-gold-400/30 rounded-full text-xs">{s}</span>
                     ))}
                   </div>
                 </div>
@@ -227,26 +227,26 @@ export default function AnalyzeJD() {
           </div>
 
           {/* Projects */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recommended Projects</h3>
+          <div className="bg-white rounded-2xl border border-ink-900/5 p-6 shadow-sm">
+            <h3 className="text-lg font-bold text-ink-900 mb-4">Recommended Projects</h3>
             {result.recommended_projects.warning && (
-              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+              <div className="mb-4 p-3 bg-gold-300/20 border border-gold-400/40 rounded-xl text-sm text-ink-900/80">
                 ⚠️ {result.recommended_projects.warning}
               </div>
             )}
             <div className="space-y-3">
               {result.recommended_projects.selected.map((project, i) => (
-                <div key={project.name} className="flex items-center gap-4 p-3 rounded-lg border border-gray-100 bg-gray-50">
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
+                <div key={project.name} className="flex items-center gap-4 p-3 rounded-2xl border border-ink-900/5 bg-cream-100/50">
+                  <div className="w-8 h-8 rounded-full bg-ink-900 text-cream-50 flex items-center justify-center text-sm font-bold shrink-0">
                     {i + 1}
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{project.name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{project.stack.slice(0, 5).join(' · ')}</p>
+                    <p className="text-sm font-semibold text-ink-900">{project.name}</p>
+                    <p className="text-xs text-ink-900/50 mt-0.5">{project.stack.slice(0, 5).join(' · ')}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="text-sm font-bold text-blue-600">{project.score}</span>
-                    <p className="text-xs text-gray-400">score</p>
+                    <span className="text-sm font-bold text-ink-900">{project.score}</span>
+                    <p className="text-xs text-ink-900/40">score</p>
                   </div>
                 </div>
               ))}

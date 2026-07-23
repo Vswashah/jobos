@@ -200,20 +200,20 @@ export default function Profile() {
   return (
     <div className="p-8 max-w-4xl">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">My Profile</h2>
-        <p className="text-gray-500 mt-1">Your skills and projects used for resume generation</p>
+        <h2 className="text-3xl font-extrabold text-ink-900 tracking-tight">My Profile</h2>
+        <p className="text-ink-900/50 mt-1">Your skills and projects used for resume generation</p>
       </div>
 
       {loadError && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center justify-between">
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center justify-between">
           <span>Failed to connect to JobOS API. Make sure the backend is running on port 8000.</span>
-          <button onClick={loadProfile} className="text-red-700 font-medium hover:underline shrink-0 ml-3">Retry</button>
+          <button onClick={loadProfile} className="text-red-700 font-semibold hover:underline shrink-0 ml-3">Retry</button>
         </div>
       )}
 
       {/* Personal Info */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Info</h3>
+      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 mb-4 shadow-sm">
+        <h3 className="text-lg font-bold text-ink-900 mb-4">Personal Info</h3>
         {loading ? (
           <SkeletonGrid />
         ) : (
@@ -227,8 +227,8 @@ export default function Profile() {
               ['Visa', personal?.visa_status ? `${personal.visa_status} (CPT Eligible)` : '—'],
             ].map(([label, value]) => (
               <div key={label}>
-                <span className="text-gray-500">{label}:</span>
-                <span className="font-medium ml-2">{value}</span>
+                <span className="text-ink-900/50">{label}:</span>
+                <span className="font-semibold ml-2 text-ink-900">{value}</span>
               </div>
             ))}
           </div>
@@ -236,23 +236,23 @@ export default function Profile() {
       </div>
 
       {/* Skills */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4">
+      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 mb-4 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Skills ({skills.length})</h3>
-          <button onClick={openAddSkill} className="text-sm text-blue-600 hover:underline font-medium">+ Add Skill</button>
+          <h3 className="text-lg font-bold text-ink-900">Skills ({skills.length})</h3>
+          <button onClick={openAddSkill} className="text-sm text-ink-900 bg-gold-400 hover:bg-gold-500 font-semibold px-3 py-1.5 rounded-full transition-colors">+ Add Skill</button>
         </div>
         {loading ? (
           <SkeletonChips />
         ) : skills.length === 0 ? (
-          <p className="text-sm text-gray-400">No skills yet — add your first one.</p>
+          <p className="text-sm text-ink-900/40">No skills yet — add your first one.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {skills.map(s => (
-              <span key={s.id} className="group flex items-center gap-1.5 pl-3 pr-2 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+              <span key={s.id} className="group flex items-center gap-1.5 pl-3 pr-2 py-1 bg-cream-200 text-ink-900/80 rounded-full text-sm">
                 {s.name}
                 <button
                   onClick={() => removeSkill(s)}
-                  className="text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-600 transition-opacity leading-none"
+                  className="text-ink-900/30 opacity-0 group-hover:opacity-100 hover:text-red-600 transition-opacity leading-none"
                   aria-label={`Remove ${s.name}`}
                 >
                   ×
@@ -264,30 +264,30 @@ export default function Profile() {
       </div>
 
       {/* Projects */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Projects ({projects.length})</h3>
-          <button onClick={openAddProject} className="text-sm text-blue-600 hover:underline font-medium">+ Add Project</button>
+          <h3 className="text-lg font-bold text-ink-900">Projects ({projects.length})</h3>
+          <button onClick={openAddProject} className="text-sm text-ink-900 bg-gold-400 hover:bg-gold-500 font-semibold px-3 py-1.5 rounded-full transition-colors">+ Add Project</button>
         </div>
         {loading ? (
           <SkeletonRows />
         ) : projects.length === 0 ? (
-          <p className="text-sm text-gray-400">No projects yet — add your first one.</p>
+          <p className="text-sm text-ink-900/40">No projects yet — add your first one.</p>
         ) : (
           <div className="space-y-3">
             {projects.map(p => (
-              <div key={p.id} className="flex items-center gap-4 p-3 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors">
+              <div key={p.id} className="flex items-center gap-4 p-4 rounded-2xl border border-ink-900/5 bg-cream-100/40 hover:bg-cream-100/70 transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
+                    <p className="text-sm font-semibold text-ink-900 truncate">{p.name}</p>
                     {p.is_live && (
-                      <span className="px-1.5 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded text-xs shrink-0">Live</span>
+                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs shrink-0">Live</span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5 truncate">{p.stack.join(' · ') || 'No stack listed'}</p>
+                  <p className="text-xs text-ink-900/50 mt-0.5 truncate">{p.stack.join(' · ') || 'No stack listed'}</p>
                 </div>
-                <button onClick={() => openEditProject(p)} className="text-xs text-gray-400 hover:text-gray-600 shrink-0">Edit</button>
-                <button onClick={() => removeProject(p)} className="text-xs text-gray-400 hover:text-red-600 shrink-0">Delete</button>
+                <button onClick={() => openEditProject(p)} className="text-xs font-semibold text-ink-900/50 hover:text-ink-900 shrink-0">Edit</button>
+                <button onClick={() => removeProject(p)} className="text-xs font-semibold text-ink-900/50 hover:text-red-600 shrink-0">Delete</button>
               </div>
             ))}
           </div>
@@ -299,7 +299,7 @@ export default function Profile() {
         <Modal title="Add Skill" onClose={() => setSkillModalOpen(false)}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Skill name</label>
+              <label className="block text-sm font-semibold text-ink-900/70 mb-1">Skill name</label>
               <input
                 autoFocus
                 type="text"
@@ -307,15 +307,15 @@ export default function Profile() {
                 onChange={e => setSkillName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && submitSkill()}
                 placeholder="e.g. Rust"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <label className="block text-sm font-semibold text-ink-900/70 mb-1">Category</label>
               <select
                 value={skillCategory}
                 onChange={e => setSkillCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
               >
                 {['language', 'framework', 'database', 'cloud', 'tool', 'ai_ml', 'other'].map(c => (
                   <option key={c} value={c}>{c}</option>
@@ -323,13 +323,13 @@ export default function Profile() {
               </select>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setSkillModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => setSkillModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-ink-900/60 hover:bg-cream-200 rounded-full">
                 Cancel
               </button>
               <button
                 onClick={submitSkill}
                 disabled={savingSkill || !skillName.trim()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500 disabled:opacity-50"
               >
                 {savingSkill ? 'Adding...' : 'Add Skill'}
               </button>
@@ -343,75 +343,75 @@ export default function Profile() {
         <Modal title={editingProjectId ? 'Edit Project' : 'Add Project'} onClose={() => setProjectModalOpen(false)}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <label className="block text-sm font-semibold text-ink-900/70 mb-1">Name</label>
               <input
                 autoFocus
                 type="text"
                 value={projectForm.name}
                 onChange={e => setProjectForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="Project name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <label className="block text-sm font-semibold text-ink-900/70 mb-1">Description</label>
               <textarea
                 value={projectForm.description}
                 onChange={e => setProjectForm(f => ({ ...f, description: e.target.value }))}
                 rows={2}
                 placeholder="One-line description"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full px-4 py-3 border border-ink-900/10 bg-cream-100/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-gold-400 resize-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Stack (comma separated)</label>
+              <label className="block text-sm font-semibold text-ink-900/70 mb-1">Stack (comma separated)</label>
               <input
                 type="text"
                 value={projectForm.stack}
                 onChange={e => setProjectForm(f => ({ ...f, stack: e.target.value }))}
                 placeholder="React, Node.js, PostgreSQL"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">GitHub URL</label>
+                <label className="block text-sm font-semibold text-ink-900/70 mb-1">GitHub URL</label>
                 <input
                   type="text"
                   value={projectForm.github_url}
                   onChange={e => setProjectForm(f => ({ ...f, github_url: e.target.value }))}
                   placeholder="github.com/..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Live URL</label>
+                <label className="block text-sm font-semibold text-ink-900/70 mb-1">Live URL</label>
                 <input
                   type="text"
                   value={projectForm.live_url}
                   onChange={e => setProjectForm(f => ({ ...f, live_url: e.target.value }))}
                   placeholder="myproject.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
                 />
               </div>
             </div>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-sm text-ink-900/70">
               <input
                 type="checkbox"
                 checked={projectForm.is_live}
                 onChange={e => setProjectForm(f => ({ ...f, is_live: e.target.checked }))}
-                className="rounded border-gray-300"
+                className="rounded border-ink-900/20 text-gold-400 focus:ring-gold-400"
               />
               This project is live
             </label>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setProjectModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => setProjectModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-ink-900/60 hover:bg-cream-200 rounded-full">
                 Cancel
               </button>
               <button
                 onClick={submitProject}
                 disabled={savingProject || !projectForm.name.trim()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500 disabled:opacity-50"
               >
                 {savingProject ? 'Saving...' : editingProjectId ? 'Save Changes' : 'Add Project'}
               </button>
@@ -429,7 +429,7 @@ function SkeletonGrid() {
   return (
     <div className="grid grid-cols-2 gap-4">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-4 bg-gray-100 rounded animate-pulse" />
+        <div key={i} className="h-4 bg-cream-200 rounded-full animate-pulse" />
       ))}
     </div>
   )
@@ -439,7 +439,7 @@ function SkeletonChips() {
   return (
     <div className="flex flex-wrap gap-2">
       {Array.from({ length: 10 }).map((_, i) => (
-        <div key={i} className="h-7 w-20 bg-gray-100 rounded-full animate-pulse" />
+        <div key={i} className="h-7 w-20 bg-cream-200 rounded-full animate-pulse" />
       ))}
     </div>
   )
@@ -449,7 +449,7 @@ function SkeletonRows() {
   return (
     <div className="space-y-3">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="h-14 bg-gray-100 rounded-lg animate-pulse" />
+        <div key={i} className="h-14 bg-cream-200 rounded-2xl animate-pulse" />
       ))}
     </div>
   )

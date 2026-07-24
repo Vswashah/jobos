@@ -1,9 +1,12 @@
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from db.database import get_db
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+STREAK_WINDOW_DAYS = 84  # 12 weeks, for the GitHub-style activity grid
 
 VALID_STATUSES = {"found", "applied", "interviewing", "offered", "rejected"}
 
@@ -92,4 +95,46 @@ async def get_analytics(db: AsyncSession = Depends(get_db)):
             "metadata": r[2],
             "created_at": str(r[3])
         } for r in activity.fetchall()]
+    }
+
+
+@router.get("/streak")
+async def get_streak(db: AsyncSession = Depends(get_db)):
+    """Activity streak — consecutive days with at least one logged action (JD analyzed, resume generated, etc.)"""
+    today = (await db.execute(text("SELECT CURRENT_DATE"))).scalar()
+
+    result = await db.execute(text("""
+        SELECT DATE(created_at) as day, COUNT(*) as cnt
+        FROM activity_log
+        WHERE created_at >= CURRENT_DATE - make_interval(days => :window_days)
+        GROUP BY DATE(created_at)
+    """), {"window_days": STREAK_WINDOW_DAYS - 1})
+    counts = {row[0]: row[1] for row in result.fetchall()}
+
+    days = [today - timedelta(days=i) for i in range(STREAK_WINDOW_DAYS - 1, -1, -1)]
+    grid = [{"date": d.isoformat(), "count": counts.get(d, 0)} for d in days]
+
+    # Count backward from today; if today has no activity yet, start from
+    # yesterday so an ongoing streak isn't broken before the day is over.
+    active_today = counts.get(today, 0) > 0
+    current_streak = 0
+    cursor = today if active_today else today - timedelta(days=1)
+    while counts.get(cursor, 0) > 0:
+        current_streak += 1
+        cursor -= timedelta(days=1)
+
+    longest_streak = 0
+    running = 0
+    for d in days:
+        if counts.get(d, 0) > 0:
+            running += 1
+            longest_streak = max(longest_streak, running)
+        else:
+            running = 0
+
+    return {
+        "current_streak": current_streak,
+        "longest_streak": longest_streak,
+        "active_today": active_today,
+        "grid": grid,
     }

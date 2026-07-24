@@ -37,6 +37,41 @@ def test_analytics_returns_stats_keys(client):
     assert "recent_activity" in data
 
 
+def test_streak_returns_expected_shape(client):
+    res = client.get("/api/jobs/streak")
+    assert res.status_code == 200
+    data = res.json()
+    assert isinstance(data["current_streak"], int)
+    assert isinstance(data["longest_streak"], int)
+    assert isinstance(data["active_today"], bool)
+    assert len(data["grid"]) == 84
+    for day in data["grid"]:
+        assert "date" in day
+        assert isinstance(day["count"], int)
+        assert day["count"] >= 0
+    # grid is chronological, oldest to newest, ending today
+    dates = [day["date"] for day in data["grid"]]
+    assert dates == sorted(dates)
+    # the longest streak within the window can never be shorter than the
+    # current streak, since the current streak is itself a run within it
+    assert data["longest_streak"] >= data["current_streak"]
+
+
+def test_streak_reflects_todays_activity(client):
+    before = client.get("/api/jobs/streak").json()
+
+    client.post("/api/resumes/analyze", json={
+        "jd_text": "Python developer with Kafka and AWS experience",
+        "company": f"StreakTest-{uuid.uuid4().hex[:8]}",
+        "role": "Engineer",
+        "team_focus": "",
+    })
+
+    after = client.get("/api/jobs/streak").json()
+    assert after["active_today"] is True
+    assert after["grid"][-1]["count"] >= before["grid"][-1]["count"] + 1
+
+
 def test_analyze_jd_creates_job_and_status_can_be_updated(client):
     unique_company = f"TestCo-{uuid.uuid4().hex[:8]}"
     jd_text = "We need a Python developer with experience in Kafka, Redis, AWS, and Docker."

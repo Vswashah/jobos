@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.database import get_db
 from services import gmail_service, db_service
+from services.auth_service import get_current_user_id
 from services.interview_extractor import extract_interview_details
 
 router = APIRouter(prefix="/gmail", tags=["gmail"])
@@ -22,20 +23,25 @@ def _parse_iso(value: str | None):
 
 
 @router.get("/status")
-async def gmail_status(db: AsyncSession = Depends(get_db)):
-    token = await db_service.get_setting(db, GMAIL_REFRESH_TOKEN_KEY)
+async def gmail_status(user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    token = await db_service.get_setting(db, user_id, GMAIL_REFRESH_TOKEN_KEY)
     return {"connected": token is not None}
 
 
 @router.get("/authorize")
-async def gmail_authorize():
+async def gmail_authorize(user_id: str = Depends(get_current_user_id)):
+    # Not otherwise used (identity comes from the session cookie, which
+    # persists through the redirect chain since it's SameSite=None in
+    # production) — depending on get_current_user_id here just ensures
+    # you must be logged into JobOS before starting the Google OAuth flow.
     if not gmail_service.GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID is not configured on the server")
     return RedirectResponse(gmail_service.get_authorization_url())
 
 
 @router.get("/callback")
-async def gmail_callback(code: str | None = None, error: str | None = None, db: AsyncSession = Depends(get_db)):
+async def gmail_callback(code: str | None = None, error: str | None = None,
+                         user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     if error:
         raise HTTPException(status_code=400, detail=f"Google OAuth error: {error}")
     if not code:
@@ -53,20 +59,20 @@ async def gmail_callback(code: str | None = None, error: str | None = None, db: 
             ),
         )
 
-    await db_service.set_setting(db, GMAIL_REFRESH_TOKEN_KEY, refresh_token)
+    await db_service.set_setting(db, user_id, GMAIL_REFRESH_TOKEN_KEY, refresh_token)
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
     return RedirectResponse(f"{frontend_url}/?gmail=connected")
 
 
 @router.post("/disconnect")
-async def gmail_disconnect(db: AsyncSession = Depends(get_db)):
-    await db_service.delete_setting(db, GMAIL_REFRESH_TOKEN_KEY)
+async def gmail_disconnect(user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    await db_service.delete_setting(db, user_id, GMAIL_REFRESH_TOKEN_KEY)
     return {"message": "Gmail disconnected"}
 
 
 @router.post("/sync")
-async def gmail_sync(db: AsyncSession = Depends(get_db)):
-    refresh_token = await db_service.get_setting(db, GMAIL_REFRESH_TOKEN_KEY)
+async def gmail_sync(user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    refresh_token = await db_service.get_setting(db, user_id, GMAIL_REFRESH_TOKEN_KEY)
     if not refresh_token:
         raise HTTPException(status_code=400, detail="Gmail is not connected yet")
 
@@ -86,7 +92,7 @@ async def gmail_sync(db: AsyncSession = Depends(get_db)):
             skipped += 1
             continue
 
-        job_id = await db_service.find_job_by_company(db, company)
+        job_id = await db_service.find_job_by_company(db, user_id, company)
         if not job_id:
             skipped += 1
             continue
@@ -105,7 +111,7 @@ async def gmail_sync(db: AsyncSession = Depends(get_db)):
             interview_date, details.get("interviewer_name"),
             notes=f'Auto-detected from email: "{msg["subject"]}"',
         )
-        await db_service.log_activity(db, "interview_detected", "interview", metadata={"company": company})
+        await db_service.log_activity(db, user_id, "interview_detected", "interview", metadata={"company": company})
         found += 1
 
     return {"scanned": len(messages), "interviews_found": found, "skipped": skipped}

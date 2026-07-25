@@ -1,24 +1,22 @@
 """
-Database service — fetches user profile, skills, projects, experience from DB.
-Replaces the hardcoded YOUR_SKILLS, YOUR_PROJECTS lists in main.py.
+Database service — every function is scoped to a specific user_id (the
+authenticated caller), obtained via services.auth_service.get_current_user_id.
 """
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import json
 
-USER_ID = "550e8400-e29b-41d4-a716-446655440000"
-
-async def get_user_skills(db: AsyncSession) -> list:
+async def get_user_skills(db: AsyncSession, user_id: str) -> list:
     """Fetch all verified skills as a list of names"""
     result = await db.execute(text("""
         SELECT name FROM skills
         WHERE user_id = :user_id AND is_deleted = FALSE
         ORDER BY category, name
-    """), {"user_id": USER_ID})
+    """), {"user_id": user_id})
     return [row[0] for row in result.fetchall()]
 
 
-async def get_user_projects(db: AsyncSession) -> list:
+async def get_user_projects(db: AsyncSession, user_id: str) -> list:
     """Fetch all projects as list of dicts matching YOUR_PROJECTS format"""
     result = await db.execute(text("""
         SELECT name, description, stack, github_url, live_url,
@@ -26,7 +24,7 @@ async def get_user_projects(db: AsyncSession) -> list:
         FROM projects
         WHERE user_id = :user_id AND is_deleted = FALSE
         ORDER BY display_order
-    """), {"user_id": USER_ID})
+    """), {"user_id": user_id})
 
     projects = []
     for row in result.fetchall():
@@ -49,14 +47,14 @@ async def get_user_projects(db: AsyncSession) -> list:
     return projects
 
 
-async def get_user_experience(db: AsyncSession) -> list:
+async def get_user_experience(db: AsyncSession, user_id: str) -> list:
     """Fetch all experience entries as list of dicts"""
     result = await db.execute(text("""
         SELECT title, company, location, dates, bullets, domains
         FROM experience
         WHERE user_id = :user_id AND is_deleted = FALSE
         ORDER BY display_order
-    """), {"user_id": USER_ID})
+    """), {"user_id": user_id})
 
     return [{
         "title": row[0],
@@ -68,13 +66,14 @@ async def get_user_experience(db: AsyncSession) -> list:
     } for row in result.fetchall()]
 
 
-async def get_user_profile(db: AsyncSession) -> dict:
+async def get_user_profile(db: AsyncSession, user_id: str) -> dict:
     """Fetch user profile"""
     result = await db.execute(text("""
-        SELECT name, email, phone, linkedin_url, github_url, portfolio_url
+        SELECT name, email, phone, linkedin_url, github_url, portfolio_url,
+               graduation_date, visa_status
         FROM user_profiles
         WHERE id = :user_id AND is_deleted = FALSE
-    """), {"user_id": USER_ID})
+    """), {"user_id": user_id})
     row = result.fetchone()
     if not row:
         return {}
@@ -85,22 +84,32 @@ async def get_user_profile(db: AsyncSession) -> dict:
         "linkedin": row[3],
         "github": row[4],
         "portfolio": row[5],
+        "graduation_date": str(row[6]) if row[6] else None,
+        "visa_status": row[7],
     }
 
 
-async def save_job(db: AsyncSession, company: str, role: str, jd_text: str,
+async def save_job(db: AsyncSession, user_id: str, company: str, role: str, jd_text: str,
                    required_skills: list, preferred_skills: list,
-                   domain: str, team_focus: str) -> str:
+                   domain: str, team_focus: str, location: str = None,
+                   remote_type: str = None, source_url: str = None,
+                   h1b_sponsor: bool = None, f1_eligible: bool = True,
+                   deadline: str = None) -> str:
     """Save analyzed job to database, return job ID"""
     import uuid
     job_id = str(uuid.uuid4())
     await db.execute(text("""
-        INSERT INTO jobs (id, company, role, jd_text, required_skills,
-                         preferred_skills, domain, team_focus, status)
-        VALUES (:id, :company, :role, :jd_text, :required_skills,
-                :preferred_skills, :domain, :team_focus, 'found')
+        INSERT INTO jobs (id, user_id, company, role, jd_text, required_skills,
+                         preferred_skills, domain, team_focus, status,
+                         location, remote_type, source_url, h1b_sponsor,
+                         f1_eligible, deadline)
+        VALUES (:id, :user_id, :company, :role, :jd_text, :required_skills,
+                :preferred_skills, :domain, :team_focus, 'found',
+                :location, :remote_type, :source_url, :h1b_sponsor,
+                :f1_eligible, :deadline)
     """), {
         "id": job_id,
+        "user_id": user_id,
         "company": company,
         "role": role,
         "jd_text": jd_text,
@@ -108,24 +117,31 @@ async def save_job(db: AsyncSession, company: str, role: str, jd_text: str,
         "preferred_skills": preferred_skills,
         "domain": domain,
         "team_focus": team_focus,
+        "location": location,
+        "remote_type": remote_type,
+        "source_url": source_url,
+        "h1b_sponsor": h1b_sponsor,
+        "f1_eligible": f1_eligible,
+        "deadline": deadline,
     })
     await db.commit()
     return job_id
 
 
-async def save_resume(db: AsyncSession, job_id: str, file_path: str,
+async def save_resume(db: AsyncSession, user_id: str, job_id: str, file_path: str,
                       skills_included: list, projects_selected: list,
                       experience_selected: list) -> str:
     """Save generated resume to database"""
     import uuid
     resume_id = str(uuid.uuid4())
     await db.execute(text("""
-        INSERT INTO resumes (id, job_id, file_path, skills_included,
+        INSERT INTO resumes (id, user_id, job_id, file_path, skills_included,
                             projects_selected, experience_selected)
-        VALUES (:id, :job_id, :file_path, :skills_included,
+        VALUES (:id, :user_id, :job_id, :file_path, :skills_included,
                 :projects_selected, :experience_selected)
     """), {
         "id": resume_id,
+        "user_id": user_id,
         "job_id": job_id,
         "file_path": file_path,
         "skills_included": skills_included,
@@ -136,15 +152,16 @@ async def save_resume(db: AsyncSession, job_id: str, file_path: str,
     return resume_id
 
 
-async def log_activity(db: AsyncSession, action: str, entity_type: str,
+async def log_activity(db: AsyncSession, user_id: str, action: str, entity_type: str,
                        entity_id: str = None, metadata: dict = None):
     """Log activity for dashboard recent activity"""
     import uuid, json
     await db.execute(text("""
-        INSERT INTO activity_log (id, action, entity_type, entity_id, metadata)
-        VALUES (:id, :action, :entity_type, :entity_id, :metadata)
+        INSERT INTO activity_log (id, user_id, action, entity_type, entity_id, metadata)
+        VALUES (:id, :user_id, :action, :entity_type, :entity_id, :metadata)
     """), {
         "id": str(uuid.uuid4()),
+        "user_id": user_id,
         "action": action,
         "entity_type": entity_type,
         "entity_id": entity_id,
@@ -153,45 +170,63 @@ async def log_activity(db: AsyncSession, action: str, entity_type: str,
     await db.commit()
 
 
-# ── Settings (key/value) ────────────────────────────────────────────────────
+# ── Settings (key/value, per user) ──────────────────────────────────────────
 
-async def get_setting(db: AsyncSession, key: str) -> str | None:
-    result = await db.execute(text("SELECT value FROM settings WHERE key = :key"), {"key": key})
+async def get_setting(db: AsyncSession, user_id: str, key: str) -> str | None:
+    result = await db.execute(text("""
+        SELECT value FROM settings WHERE user_id = :user_id AND key = :key
+    """), {"user_id": user_id, "key": key})
     row = result.fetchone()
     return row[0] if row else None
 
 
-async def set_setting(db: AsyncSession, key: str, value: str, category: str = "gmail"):
+async def set_setting(db: AsyncSession, user_id: str, key: str, value: str, category: str = "gmail"):
     import uuid
     await db.execute(text("""
-        INSERT INTO settings (id, key, value, category)
-        VALUES (:id, :key, :value, :category)
-        ON CONFLICT (key) DO UPDATE SET value = :value, updated_at = NOW()
-    """), {"id": str(uuid.uuid4()), "key": key, "value": value, "category": category})
+        INSERT INTO settings (id, user_id, key, value, category)
+        VALUES (:id, :user_id, :key, :value, :category)
+        ON CONFLICT (user_id, key) DO UPDATE SET value = :value, updated_at = NOW()
+    """), {"id": str(uuid.uuid4()), "user_id": user_id, "key": key, "value": value, "category": category})
     await db.commit()
 
 
-async def delete_setting(db: AsyncSession, key: str):
-    await db.execute(text("DELETE FROM settings WHERE key = :key"), {"key": key})
+async def delete_setting(db: AsyncSession, user_id: str, key: str):
+    await db.execute(text("""
+        DELETE FROM settings WHERE user_id = :user_id AND key = :key
+    """), {"user_id": user_id, "key": key})
     await db.commit()
 
 
 # ── Applications & Interviews ───────────────────────────────────────────────
 
-async def find_job_by_company(db: AsyncSession, company: str):
+async def find_job_by_company(db: AsyncSession, user_id: str, company: str):
     """Best-effort match on company name — case-insensitive, most recent first"""
     result = await db.execute(text("""
         SELECT id FROM jobs
-        WHERE is_deleted = FALSE AND LOWER(company) = LOWER(:company)
+        WHERE user_id = :user_id AND is_deleted = FALSE AND LOWER(company) = LOWER(:company)
         ORDER BY found_at DESC
         LIMIT 1
-    """), {"company": company})
+    """), {"user_id": user_id, "company": company})
+    row = result.fetchone()
+    return str(row[0]) if row else None
+
+
+async def find_job_by_source_url(db: AsyncSession, user_id: str, source_url: str):
+    """Dedup key for discovered postings — unlike company-level dedup, two
+    different roles at the same company should both be kept."""
+    result = await db.execute(text("""
+        SELECT id FROM jobs
+        WHERE user_id = :user_id AND is_deleted = FALSE AND source_url = :source_url
+        LIMIT 1
+    """), {"user_id": user_id, "source_url": source_url})
     row = result.fetchone()
     return str(row[0]) if row else None
 
 
 async def find_or_create_application(db: AsyncSession, job_id: str) -> str:
-    """Get the application for a job, creating one (status='applied') if none exists yet"""
+    """Get the application for a job, creating one (status='applied') if none exists yet.
+    job_id is trusted to already belong to the calling user — callers obtain
+    it via find_job_by_company(db, user_id, ...), which scopes it."""
     result = await db.execute(text("""
         SELECT id FROM applications WHERE job_id = :job_id AND is_deleted = FALSE
         ORDER BY created_at DESC LIMIT 1
@@ -242,16 +277,16 @@ async def save_interview(db: AsyncSession, application_id: str, round_num: int, 
     return interview_id
 
 
-async def list_interviews(db: AsyncSession) -> list:
+async def list_interviews(db: AsyncSession, user_id: str) -> list:
     result = await db.execute(text("""
         SELECT i.id, j.company, j.role, i.round, i.format, i.interview_date,
                i.interviewer_name, i.outcome, i.notes, a.id as application_id
         FROM interviews i
         JOIN applications a ON a.id = i.application_id
         JOIN jobs j ON j.id = a.job_id
-        WHERE j.is_deleted = FALSE
+        WHERE j.is_deleted = FALSE AND j.user_id = :user_id
         ORDER BY i.interview_date ASC NULLS LAST
-    """))
+    """), {"user_id": user_id})
     return [{
         "id": str(row[0]),
         "company": row[1],

@@ -225,9 +225,9 @@ async def seed():
 
         for key, value, category in settings:
             await db.execute(text("""
-                INSERT INTO settings (id, key, value, category)
-                VALUES (:id, :key, :value, :category)
-            """), {"id": str(uuid.uuid4()), "key": key, "value": value, "category": category})
+                INSERT INTO settings (id, user_id, key, value, category)
+                VALUES (:id, :user_id, :key, :value, :category)
+            """), {"id": str(uuid.uuid4()), "user_id": USER_ID, "key": key, "value": value, "category": category})
 
         await db.commit()
         print("✅ Database seeded successfully!")

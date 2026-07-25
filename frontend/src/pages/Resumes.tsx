@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Toast from '../components/Toast'
-import { API_BASE } from '../config'
+import { apiFetch } from '../api'
 
 interface Job {
   id: string
@@ -29,7 +29,7 @@ export default function Resumes() {
   const [toast, setToast] = useState<{ message: string; kind?: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/jobs/`)
+    apiFetch('/api/jobs/')
       .then(r => r.json())
       .then(data => {
         setJobs(data.jobs || [])
@@ -42,7 +42,7 @@ export default function Resumes() {
     const prevJobs = jobs
     setJobs(jobs.map(j => j.id === jobId ? { ...j, status } : j))
     try {
-      const res = await fetch(`${API_BASE}/api/jobs/${jobId}/status?status=${status}`, {
+      const res = await apiFetch(`/api/jobs/${jobId}/status?status=${status}`, {
         method: 'PATCH'
       })
       if (!res.ok) throw new Error('Failed to update status')

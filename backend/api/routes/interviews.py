@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.database import get_db
 from services import db_service
+from services.auth_service import get_current_user_id
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
 
@@ -18,14 +19,14 @@ class InterviewIn(BaseModel):
 
 
 @router.get("/")
-async def list_interviews(db: AsyncSession = Depends(get_db)):
-    return {"interviews": await db_service.list_interviews(db)}
+async def list_interviews(user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    return {"interviews": await db_service.list_interviews(db, user_id)}
 
 
 @router.post("/")
-async def create_interview(interview: InterviewIn, db: AsyncSession = Depends(get_db)):
+async def create_interview(interview: InterviewIn, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     """Manually log an interview for a company you've already analyzed a JD for."""
-    job_id = await db_service.find_job_by_company(db, interview.company)
+    job_id = await db_service.find_job_by_company(db, user_id, interview.company)
     if not job_id:
         raise HTTPException(
             status_code=404,

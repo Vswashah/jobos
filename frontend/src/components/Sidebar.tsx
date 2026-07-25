@@ -2,6 +2,7 @@ import type { Page } from '../types'
 const nav = [
   { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
   { id: 'analyze',   label: 'Analyze JD', icon: '⚡' },
+  { id: 'discover',  label: 'Discover Jobs', icon: '🧭' },
   { id: 'resumes',   label: 'My Resumes', icon: '📄' },
   { id: 'interviews', label: 'Interviews', icon: '🎙️' },
   { id: 'profile',   label: 'My Profile', icon: '👤' },

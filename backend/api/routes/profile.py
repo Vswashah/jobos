@@ -6,7 +6,7 @@ from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from db.database import get_db
-from services.db_service import USER_ID
+from services.auth_service import get_current_user_id
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -29,25 +29,25 @@ class ProjectIn(BaseModel):
 
 
 @router.get("/")
-async def get_profile(db: AsyncSession = Depends(get_db)):
+async def get_profile(user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     """Full profile — personal info, skills, projects"""
     profile_row = (await db.execute(text("""
         SELECT name, email, phone, linkedin_url, github_url, portfolio_url,
                university, degree, graduation_date, visa_status
         FROM user_profiles WHERE id = :user_id AND is_deleted = FALSE
-    """), {"user_id": USER_ID})).fetchone()
+    """), {"user_id": user_id})).fetchone()
 
     skills_rows = (await db.execute(text("""
         SELECT id, name, category, proficiency FROM skills
         WHERE user_id = :user_id AND is_deleted = FALSE
         ORDER BY category, name
-    """), {"user_id": USER_ID})).fetchall()
+    """), {"user_id": user_id})).fetchall()
 
     project_rows = (await db.execute(text("""
         SELECT id, name, description, stack, github_url, live_url, is_live, domains, highlights, display_order
         FROM projects WHERE user_id = :user_id AND is_deleted = FALSE
         ORDER BY display_order
-    """), {"user_id": USER_ID})).fetchall()
+    """), {"user_id": user_id})).fetchall()
 
     personal = None
     if profile_row:
@@ -87,24 +87,24 @@ async def get_profile(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/skills")
-async def list_skills(db: AsyncSession = Depends(get_db)):
+async def list_skills(user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     rows = (await db.execute(text("""
         SELECT id, name, category, proficiency FROM skills
         WHERE user_id = :user_id AND is_deleted = FALSE
         ORDER BY category, name
-    """), {"user_id": USER_ID})).fetchall()
+    """), {"user_id": user_id})).fetchall()
     return {"skills": [{"id": str(r[0]), "name": r[1], "category": r[2], "proficiency": r[3]} for r in rows]}
 
 
 @router.post("/skills")
-async def add_skill(skill: SkillIn, db: AsyncSession = Depends(get_db)):
+async def add_skill(skill: SkillIn, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     name = skill.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Skill name is required")
 
     existing = (await db.execute(text("""
         SELECT id FROM skills WHERE user_id = :user_id AND is_deleted = FALSE AND LOWER(name) = LOWER(:name)
-    """), {"user_id": USER_ID, "name": name})).fetchone()
+    """), {"user_id": user_id, "name": name})).fetchone()
     if existing:
         raise HTTPException(status_code=409, detail=f"'{name}' is already in your skills")
 
@@ -113,7 +113,7 @@ async def add_skill(skill: SkillIn, db: AsyncSession = Depends(get_db)):
         INSERT INTO skills (id, user_id, name, category, proficiency, verified, source)
         VALUES (:id, :user_id, :name, :category, :proficiency, TRUE, 'manual')
     """), {
-        "id": skill_id, "user_id": USER_ID, "name": name,
+        "id": skill_id, "user_id": user_id, "name": name,
         "category": skill.category or "other", "proficiency": skill.proficiency or "intermediate",
     })
     await db.commit()
@@ -121,11 +121,11 @@ async def add_skill(skill: SkillIn, db: AsyncSession = Depends(get_db)):
 
 
 @router.delete("/skills/{skill_id}")
-async def delete_skill(skill_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_skill(skill_id: str, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     result = await db.execute(text("""
         UPDATE skills SET is_deleted = TRUE, deleted_at = NOW()
         WHERE id = :id AND user_id = :user_id
-    """), {"id": skill_id, "user_id": USER_ID})
+    """), {"id": skill_id, "user_id": user_id})
     await db.commit()
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Skill not found")
@@ -133,12 +133,12 @@ async def delete_skill(skill_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/projects")
-async def list_projects(db: AsyncSession = Depends(get_db)):
+async def list_projects(user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     rows = (await db.execute(text("""
         SELECT id, name, description, stack, github_url, live_url, is_live, domains, highlights, display_order
         FROM projects WHERE user_id = :user_id AND is_deleted = FALSE
         ORDER BY display_order
-    """), {"user_id": USER_ID})).fetchall()
+    """), {"user_id": user_id})).fetchall()
 
     def parse_highlights(raw):
         if isinstance(raw, str):
@@ -153,14 +153,14 @@ async def list_projects(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/projects")
-async def add_project(project: ProjectIn, db: AsyncSession = Depends(get_db)):
+async def add_project(project: ProjectIn, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     name = project.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Project name is required")
 
     max_order = (await db.execute(text("""
         SELECT COALESCE(MAX(display_order), 0) FROM projects WHERE user_id = :user_id AND is_deleted = FALSE
-    """), {"user_id": USER_ID})).scalar()
+    """), {"user_id": user_id})).scalar()
 
     project_id = str(uuid.uuid4())
     await db.execute(text("""
@@ -169,7 +169,7 @@ async def add_project(project: ProjectIn, db: AsyncSession = Depends(get_db)):
         VALUES (:id, :user_id, :name, :description, :stack, :github_url, :live_url,
                 :is_live, :domains, :highlights, :display_order)
     """), {
-        "id": project_id, "user_id": USER_ID, "name": name, "description": project.description,
+        "id": project_id, "user_id": user_id, "name": name, "description": project.description,
         "stack": project.stack, "github_url": project.github_url, "live_url": project.live_url,
         "is_live": project.is_live, "domains": project.domains,
         "highlights": json.dumps({"default": project.highlights}),
@@ -180,7 +180,7 @@ async def add_project(project: ProjectIn, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/projects/{project_id}")
-async def update_project(project_id: str, project: ProjectIn, db: AsyncSession = Depends(get_db)):
+async def update_project(project_id: str, project: ProjectIn, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     name = project.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Project name is required")
@@ -191,7 +191,7 @@ async def update_project(project_id: str, project: ProjectIn, db: AsyncSession =
                domains = :domains, highlights = :highlights, updated_at = NOW()
         WHERE id = :id AND user_id = :user_id AND is_deleted = FALSE
     """), {
-        "id": project_id, "user_id": USER_ID, "name": name, "description": project.description,
+        "id": project_id, "user_id": user_id, "name": name, "description": project.description,
         "stack": project.stack, "github_url": project.github_url, "live_url": project.live_url,
         "is_live": project.is_live, "domains": project.domains,
         "highlights": json.dumps({"default": project.highlights}),
@@ -203,11 +203,11 @@ async def update_project(project_id: str, project: ProjectIn, db: AsyncSession =
 
 
 @router.delete("/projects/{project_id}")
-async def delete_project(project_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_project(project_id: str, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     result = await db.execute(text("""
         UPDATE projects SET is_deleted = TRUE, deleted_at = NOW()
         WHERE id = :id AND user_id = :user_id
-    """), {"id": project_id, "user_id": USER_ID})
+    """), {"id": project_id, "user_id": user_id})
     await db.commit()
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Project not found")

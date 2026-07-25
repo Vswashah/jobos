@@ -3,6 +3,7 @@ Integration tests for /api/jobs routes and the resume analysis pipeline.
 Requires a live, migrated+seeded Postgres database.
 """
 import uuid
+from services import job_discovery_service
 
 
 def test_health(client):
@@ -171,3 +172,80 @@ def test_analyze_jd_does_not_crash_when_top_project_has_empty_domains(client):
         assert top_project["name"] == unique_name
     finally:
         client.delete(f"/api/profile/projects/{project_id}")
+
+
+def test_discover_jobs_saves_new_postings_and_dedups_on_rerun(client, monkeypatch):
+    unique_company = f"DiscoverCo-{uuid.uuid4().hex[:8]}"
+    posting = {
+        "company": unique_company,
+        "role": "Backend Engineering Intern",
+        "location": "Austin, TX",
+        "remote_type": "hybrid",
+        "source_url": f"https://{unique_company.lower()}.example.com/careers/1",
+        "jd_summary": "Work on backend systems.",
+        "required_skills": ["python", "postgres"],
+        "h1b_sponsor": True,
+        "f1_eligible": True,
+        "deadline": None,
+    }
+
+    async def fake_discover_jobs(skills, graduation_date):
+        return [posting]
+
+    monkeypatch.setattr(job_discovery_service, "discover_jobs", fake_discover_jobs)
+
+    first = client.post("/api/jobs/discover")
+    assert first.status_code == 200
+    first_body = first.json()
+    assert first_body["scanned"] == 1
+    assert first_body["found"] == 1
+    assert first_body["skipped"] == 0
+
+    jobs = client.get("/api/jobs/").json()["jobs"]
+    matching = [j for j in jobs if j["company"] == unique_company]
+    assert len(matching) == 1
+    job = matching[0]
+    assert job["role"] == "Backend Engineering Intern"
+    assert job["h1b_sponsor"] is True
+    assert job["f1_eligible"] is True
+    assert job["source_url"] == posting["source_url"]
+    assert job["status"] == "found"
+
+    # Re-running discovery with the same posting should dedup by source_url.
+    second = client.post("/api/jobs/discover")
+    assert second.status_code == 200
+    second_body = second.json()
+    assert second_body["found"] == 0
+    assert second_body["skipped"] == 1
+
+    jobs_after = client.get("/api/jobs/").json()["jobs"]
+    matching_after = [j for j in jobs_after if j["company"] == unique_company]
+    assert len(matching_after) == 1
+
+
+def test_discover_jobs_skips_non_f1_eligible_postings(client, monkeypatch):
+    unique_company = f"NoSponsorCo-{uuid.uuid4().hex[:8]}"
+    posting = {
+        "company": unique_company,
+        "role": "Engineer",
+        "source_url": f"https://{unique_company.lower()}.example.com/careers/1",
+        "jd_summary": "Requires US citizenship.",
+        "required_skills": [],
+        "h1b_sponsor": False,
+        "f1_eligible": False,
+        "deadline": None,
+    }
+
+    async def fake_discover_jobs(skills, graduation_date):
+        return [posting]
+
+    monkeypatch.setattr(job_discovery_service, "discover_jobs", fake_discover_jobs)
+
+    res = client.post("/api/jobs/discover")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["found"] == 0
+    assert body["skipped"] == 1
+
+    jobs = client.get("/api/jobs/").json()["jobs"]
+    assert not any(j["company"] == unique_company for j in jobs)

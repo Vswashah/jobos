@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { API_BASE } from '../config'
+import { apiFetch } from '../api'
 
 interface AnalysisResult {
   extracted_skills: {
@@ -40,7 +40,7 @@ export default function AnalyzeJD() {
     setError('')
     setResult(null)
     try {
-      const res = await fetch(`${API_BASE}/api/resumes/analyze`, {
+      const res = await apiFetch('/api/resumes/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -62,7 +62,7 @@ export default function AnalyzeJD() {
   const downloadResume = async () => {
     setDownloading(true)
     try {
-      const res = await fetch(`${API_BASE}/api/resumes/generate-pdf`, {
+      const res = await apiFetch('/api/resumes/generate-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import Modal from '../components/Modal'
 import Toast from '../components/Toast'
-import { API_BASE } from '../config'
+import { apiFetch } from '../api'
 
-const API = `${API_BASE}/api/profile`
+const API = '/api/profile'
 
 interface Skill {
   id: string
@@ -58,7 +58,7 @@ export default function Profile() {
   const loadProfile = () => {
     setLoading(true)
     setLoadError(false)
-    fetch(`${API}/`)
+    apiFetch(`${API}/`)
       .then(r => {
         if (!r.ok) throw new Error('Failed to load profile')
         return r.json()
@@ -88,7 +88,7 @@ export default function Profile() {
     if (!name) return
     setSavingSkill(true)
     try {
-      const res = await fetch(`${API}/skills`, {
+      const res = await apiFetch(`${API}/skills`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, category: skillCategory }),
@@ -109,7 +109,7 @@ export default function Profile() {
     const prev = skills
     setSkills(s => s.filter(x => x.id !== skill.id))
     try {
-      const res = await fetch(`${API}/skills/${skill.id}`, { method: 'DELETE' })
+      const res = await apiFetch(`${API}/skills/${skill.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Failed to remove skill')
       notify(`Removed "${skill.name}"`)
     } catch {
@@ -155,7 +155,7 @@ export default function Profile() {
     try {
       const url = editingProjectId ? `${API}/projects/${editingProjectId}` : `${API}/projects`
       const method = editingProjectId ? 'PATCH' : 'POST'
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -183,7 +183,7 @@ export default function Profile() {
     const prev = projects
     setProjects(ps => ps.filter(x => x.id !== p.id))
     try {
-      const res = await fetch(`${API}/projects/${p.id}`, { method: 'DELETE' })
+      const res = await apiFetch(`${API}/projects/${p.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Failed to remove project')
       notify(`Removed "${p.name}"`)
     } catch {

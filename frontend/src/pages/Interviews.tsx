@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Modal from '../components/Modal'
 import Toast from '../components/Toast'
 import { API_BASE } from '../config'
+import { apiFetch } from '../api'
 
 interface Interview {
   id: string
@@ -33,7 +34,7 @@ export default function Interviews() {
 
   const loadInterviews = () => {
     setLoading(true)
-    fetch(`${API_BASE}/api/interviews/`)
+    apiFetch(`/api/interviews/`)
       .then(r => r.json())
       .then(data => setInterviews(data.interviews || []))
       .catch(() => {})
@@ -41,7 +42,7 @@ export default function Interviews() {
   }
 
   const loadStatus = () => {
-    fetch(`${API_BASE}/api/gmail/status`)
+    apiFetch(`/api/gmail/status`)
       .then(r => r.json())
       .then(data => setConnected(data.connected))
       .catch(() => setConnected(false))
@@ -62,7 +63,7 @@ export default function Interviews() {
 
   const disconnectGmail = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/gmail/disconnect`, { method: 'POST' })
+      const res = await apiFetch(`/api/gmail/disconnect`, { method: 'POST' })
       if (!res.ok) throw new Error('Failed to disconnect')
       setConnected(false)
       setToast({ message: 'Gmail disconnected' })
@@ -74,7 +75,7 @@ export default function Interviews() {
   const syncGmail = async () => {
     setSyncing(true)
     try {
-      const res = await fetch(`${API_BASE}/api/gmail/sync`, { method: 'POST' })
+      const res = await apiFetch(`/api/gmail/sync`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Sync failed')
       setToast({ message: `Scanned ${data.scanned} emails — found ${data.interviews_found} new interview${data.interviews_found === 1 ? '' : 's'}` })
@@ -96,7 +97,7 @@ export default function Interviews() {
     if (!company) return
     setSaving(true)
     try {
-      const res = await fetch(`${API_BASE}/api/interviews/`, {
+      const res = await apiFetch(`/api/interviews/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

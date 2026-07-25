@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { API_BASE } from '../config'
+import { apiFetch } from '../api'
 import ActivityTrendChart from '../components/ActivityTrendChart'
 import TopSkillsChart from '../components/TopSkillsChart'
 
@@ -38,7 +38,7 @@ export default function Dashboard() {
   const [topSkills, setTopSkills] = useState<SkillCount[]>([])
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/jobs/analytics`)
+    apiFetch('/api/jobs/analytics')
       .then(r => r.json())
       .then(data => {
         setStats(data.stats)
@@ -46,12 +46,12 @@ export default function Dashboard() {
       })
       .catch(() => {})
 
-    fetch(`${API_BASE}/api/jobs/streak`)
+    apiFetch('/api/jobs/streak')
       .then(r => r.json())
       .then(setStreak)
       .catch(() => {})
 
-    fetch(`${API_BASE}/api/jobs/top-skills`)
+    apiFetch('/api/jobs/top-skills')
       .then(r => r.json())
       .then(data => setTopSkills(data.skills || []))
       .catch(() => {})

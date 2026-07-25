@@ -3,6 +3,7 @@ import type { Page } from './types'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import AnalyzeJD from './pages/AnalyzeJD'
+import JobDiscovery from './pages/JobDiscovery'
 import Resumes from './pages/Resumes'
 import Interviews from './pages/Interviews'
 import Profile from './pages/Profile'
@@ -21,6 +22,7 @@ export default function App() {
         <main className="flex-1 overflow-y-auto bg-cream-50 rounded-[24px] text-ink-900">
           {currentPage === 'dashboard' && <Dashboard />}
           {currentPage === 'analyze' && <AnalyzeJD />}
+          {currentPage === 'discover' && <JobDiscovery />}
           {currentPage === 'resumes' && <Resumes />}
           {currentPage === 'interviews' && <Interviews />}
           {currentPage === 'profile' && <Profile />}

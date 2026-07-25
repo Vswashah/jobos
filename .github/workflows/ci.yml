@@ -28,6 +28,8 @@ jobs:
 
     env:
       DATABASE_URL: postgresql+asyncpg://jobos:jobos123@localhost:5432/jobos
+      DEBUG: "true"
+      SECRET_KEY: ci-test-secret-key
 
     steps:
       - name: Checkout code
@@ -46,6 +48,7 @@ jobs:
       - name: Apply database migrations
         run: |
           PGPASSWORD=jobos123 psql -h localhost -U jobos -d jobos -f backend/db/migrations/001_initial.sql
+          PGPASSWORD=jobos123 psql -h localhost -U jobos -d jobos -f backend/db/migrations/002_multi_user.sql
 
       - name: Seed database
         run: |

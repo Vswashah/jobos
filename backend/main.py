@@ -6,6 +6,7 @@ from typing import List, Optional
 import sys
 import os
 import shutil
+from api.routes.auth import router as auth_router
 from api.routes.jobs import router as jobs_router
 from api.routes.profile import router as profile_router
 from api.routes.interviews import router as interviews_router
@@ -28,6 +29,7 @@ from services.db_service import (
     get_user_skills, get_user_projects, get_user_experience,
     get_user_profile, save_job, save_resume, log_activity
 )
+from services.auth_service import get_current_user_id
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
 
@@ -39,6 +41,7 @@ app = FastAPI(
 )
 
 # register routers
+app.include_router(auth_router, prefix="/api")
 app.include_router(jobs_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")
 app.include_router(interviews_router, prefix="/api")
@@ -93,11 +96,11 @@ async def health():
     return {"status": "healthy", "version": "1.0.0"}
 
 @app.post("/api/resumes/analyze")
-async def analyze_jd(request: JDRequest, db: AsyncSession = Depends(get_db)):
+async def analyze_jd(request: JDRequest, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     """Analyze JD — extract skills, match profile, rank projects"""
     # Fetch from DB
-    user_skills = await get_user_skills(db)
-    user_projects = await get_user_projects(db)
+    user_skills = await get_user_skills(db, user_id)
+    user_projects = await get_user_projects(db, user_id)
 
     extracted = extract_skills(request.jd_text)
     match = match_skills(extracted["all_skills"], user_skills)
@@ -109,7 +112,7 @@ async def analyze_jd(request: JDRequest, db: AsyncSession = Depends(get_db)):
 
     # Save job to DB
     await save_job(
-        db,
+        db, user_id,
         company=request.company or "Unknown",
         role=request.role or "Unknown",
         jd_text=request.jd_text,
@@ -118,7 +121,7 @@ async def analyze_jd(request: JDRequest, db: AsyncSession = Depends(get_db)):
         domain=(projects["selected"][0].get("domains") or ["unknown"])[0] if projects["selected"] else "unknown",
         team_focus=request.team_focus or "",
     )
-    await log_activity(db, "job_analyzed", "job", metadata={"company": request.company, "role": request.role})
+    await log_activity(db, user_id, "job_analyzed", "job", metadata={"company": request.company, "role": request.role})
 
     return {
         "extracted_skills": extracted,
@@ -130,13 +133,13 @@ async def analyze_jd(request: JDRequest, db: AsyncSession = Depends(get_db)):
 
 
 @app.post("/api/resumes/generate")
-async def generate_resume_endpoint(request: JDRequest, db: AsyncSession = Depends(get_db)):
+async def generate_resume_endpoint(request: JDRequest, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     """Full pipeline — analyze JD and generate tailored DOCX resume."""
     # Fetch from DB
-    user_skills = await get_user_skills(db)
-    user_projects = await get_user_projects(db)
-    user_experience = await get_user_experience(db)
-    user_profile = await get_user_profile(db)
+    user_skills = await get_user_skills(db, user_id)
+    user_projects = await get_user_projects(db, user_id)
+    user_experience = await get_user_experience(db, user_id)
+    user_profile = await get_user_profile(db, user_id)
 
     # Step 1 — Extract and match
     extracted = extract_skills(request.jd_text)
@@ -157,8 +160,10 @@ async def generate_resume_endpoint(request: JDRequest, db: AsyncSession = Depend
     )
 
     # Step 2 — Generate resume file
-    filename = f"Vishwaa_Shah_{request.company.replace(' ', '_')}.docx"
-    output_path = f"/tmp/jobos_resumes/{filename}"
+    person_name = (user_profile.get("name") or "Resume").replace(' ', '_')
+    filename = f"{person_name}_{request.company.replace(' ', '_')}.docx"
+    output_path = f"/tmp/jobos_resumes/{user_id}_{filename}"
+    os.makedirs("/tmp/jobos_resumes", exist_ok=True)
 
     include_research = any(
         s in extracted["all_skills"]
@@ -178,11 +183,11 @@ async def generate_resume_endpoint(request: JDRequest, db: AsyncSession = Depend
     )
 
     # Save to DB
-    await save_resume(db, job_id=None, file_path=output_path,
+    await save_resume(db, user_id, job_id=None, file_path=output_path,
         skills_included=match["matching"],
         projects_selected=[p["name"] for p in selected_projects],
         experience_selected=[e["title"] for e in selected_experience])
-    await log_activity(db, "resume_generated", "resume", metadata={"company": request.company})
+    await log_activity(db, user_id, "resume_generated", "resume", metadata={"company": request.company})
 
     return FileResponse(
         path=output_path,
@@ -190,15 +195,15 @@ async def generate_resume_endpoint(request: JDRequest, db: AsyncSession = Depend
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 @app.post("/api/resumes/generate-pdf")
-async def generate_pdf_endpoint(request: JDRequest, db: AsyncSession = Depends(get_db)):
+async def generate_pdf_endpoint(request: JDRequest, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     """Full pipeline — analyze JD and generate tailored PDF resume."""
     import subprocess
 
     # Fetch from DB
-    user_skills = await get_user_skills(db)
-    user_projects = await get_user_projects(db)
-    user_experience = await get_user_experience(db)
-    user_profile = await get_user_profile(db)
+    user_skills = await get_user_skills(db, user_id)
+    user_projects = await get_user_projects(db, user_id)
+    user_experience = await get_user_experience(db, user_id)
+    user_profile = await get_user_profile(db, user_id)
 
     # Step 1 — Extract and match
     extracted = extract_skills(request.jd_text)
@@ -219,10 +224,13 @@ async def generate_pdf_endpoint(request: JDRequest, db: AsyncSession = Depends(g
     )
 
     # Step 2 — Generate DOCX
+    person_name = (user_profile.get("name") or "Resume").replace(' ', '_')
     company = request.company.replace(' ', '_')
     os.makedirs("/tmp/jobos_resumes", exist_ok=True)
-    docx_path = f"/tmp/jobos_resumes/Vishwaa_Shah_{company}.docx"
-    pdf_path = f"/tmp/jobos_resumes/Vishwaa_Shah_{company}.pdf"
+    # user_id prefix avoids two users' concurrent requests for the same
+    # company colliding on the same temp file path.
+    docx_path = f"/tmp/jobos_resumes/{user_id}_{person_name}_{company}.docx"
+    pdf_path = f"/tmp/jobos_resumes/{user_id}_{person_name}_{company}.pdf"
 
     include_research = any(
         s in extracted["all_skills"]
@@ -255,14 +263,14 @@ async def generate_pdf_endpoint(request: JDRequest, db: AsyncSession = Depends(g
     ], check=True)
 
     # Step 4 — Save to DB and return
-    await save_resume(db, job_id=None, file_path=pdf_path,
+    await save_resume(db, user_id, job_id=None, file_path=pdf_path,
         skills_included=match["matching"],
         projects_selected=[p["name"] for p in selected_projects],
         experience_selected=[e["title"] for e in selected_experience])
-    await log_activity(db, "resume_generated", "resume", metadata={"company": request.company, "format": "pdf"})
+    await log_activity(db, user_id, "resume_generated", "resume", metadata={"company": request.company, "format": "pdf"})
 
     return FileResponse(
         path=pdf_path,
-        filename=f"Vishwaa_Shah_{company}.pdf",
+        filename=f"{person_name}_{company}.pdf",
         media_type="application/pdf"
     )

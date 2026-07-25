@@ -4,10 +4,15 @@ import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import AnalyzeJD from './pages/AnalyzeJD'
 import Resumes from './pages/Resumes'
+import Interviews from './pages/Interviews'
 import Profile from './pages/Profile'
 
+const initialPage: Page = new URLSearchParams(window.location.search).get('gmail') === 'connected'
+  ? 'interviews'
+  : 'dashboard'
+
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard')
+  const [currentPage, setCurrentPage] = useState<Page>(initialPage)
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 font-sans">
@@ -17,6 +22,7 @@ export default function App() {
           {currentPage === 'dashboard' && <Dashboard />}
           {currentPage === 'analyze' && <AnalyzeJD />}
           {currentPage === 'resumes' && <Resumes />}
+          {currentPage === 'interviews' && <Interviews />}
           {currentPage === 'profile' && <Profile />}
         </main>
       </div>

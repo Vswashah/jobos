@@ -8,6 +8,8 @@ import os
 import shutil
 from api.routes.jobs import router as jobs_router
 from api.routes.profile import router as profile_router
+from api.routes.interviews import router as interviews_router
+from api.routes.gmail import router as gmail_router
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from utils.skill_extractor import extract_skills
 from utils.skill_matcher import match_skills
@@ -39,6 +41,8 @@ app = FastAPI(
 # register routers
 app.include_router(jobs_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")
+app.include_router(interviews_router, prefix="/api")
+app.include_router(gmail_router, prefix="/api")
 
 _default_origins = "http://localhost:5173,http://localhost:3000"
 cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", _default_origins).split(",") if o.strip()]

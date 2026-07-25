@@ -3,6 +3,7 @@ const nav = [
   { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
   { id: 'analyze',   label: 'Analyze JD', icon: '⚡' },
   { id: 'resumes',   label: 'My Resumes', icon: '📄' },
+  { id: 'interviews', label: 'Interviews', icon: '🎙️' },
   { id: 'profile',   label: 'My Profile', icon: '👤' },
 ]
 

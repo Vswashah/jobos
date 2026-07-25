@@ -16,10 +16,25 @@ services:
         value: https://jobos-frontend-5de2.onrender.com
       - key: SECRET_KEY
         generateValue: true
-      # GROQ_API_KEY, GEMINI_API_KEY, AWS_* aren't read by any code yet —
-      # add them in the dashboard's Environment tab later if you wire up
-      # those features. Declaring them here as sync:false would block
-      # blueprint deploys until every one has a value.
+      # Groq parses candidate emails into structured interview details —
+      # see DEPLOY.md for where to get a free key.
+      - key: GROQ_API_KEY
+        sync: false
+      # Google OAuth for the Gmail integration — see DEPLOY.md for creating
+      # these in Google Cloud Console. Redirect URI and frontend URL are
+      # already known (both services' real URLs), so those are set directly.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        value: https://jobos-backend.onrender.com/api/gmail/callback
+      - key: FRONTEND_URL
+        value: https://jobos-frontend-5de2.onrender.com
+      # GEMINI_API_KEY, AWS_* aren't read by any code yet — add them in the
+      # dashboard's Environment tab later if you wire up those features.
+      # Declaring them here as sync:false would block blueprint deploys
+      # until every one has a value.
 
   - type: web
     name: jobos-frontend

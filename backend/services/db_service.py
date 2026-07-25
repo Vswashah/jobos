@@ -151,3 +151,116 @@ async def log_activity(db: AsyncSession, action: str, entity_type: str,
         "metadata": json.dumps(metadata or {}),
     })
     await db.commit()
+
+
+# ── Settings (key/value) ────────────────────────────────────────────────────
+
+async def get_setting(db: AsyncSession, key: str) -> str | None:
+    result = await db.execute(text("SELECT value FROM settings WHERE key = :key"), {"key": key})
+    row = result.fetchone()
+    return row[0] if row else None
+
+
+async def set_setting(db: AsyncSession, key: str, value: str, category: str = "gmail"):
+    import uuid
+    await db.execute(text("""
+        INSERT INTO settings (id, key, value, category)
+        VALUES (:id, :key, :value, :category)
+        ON CONFLICT (key) DO UPDATE SET value = :value, updated_at = NOW()
+    """), {"id": str(uuid.uuid4()), "key": key, "value": value, "category": category})
+    await db.commit()
+
+
+async def delete_setting(db: AsyncSession, key: str):
+    await db.execute(text("DELETE FROM settings WHERE key = :key"), {"key": key})
+    await db.commit()
+
+
+# ── Applications & Interviews ───────────────────────────────────────────────
+
+async def find_job_by_company(db: AsyncSession, company: str):
+    """Best-effort match on company name — case-insensitive, most recent first"""
+    result = await db.execute(text("""
+        SELECT id FROM jobs
+        WHERE is_deleted = FALSE AND LOWER(company) = LOWER(:company)
+        ORDER BY found_at DESC
+        LIMIT 1
+    """), {"company": company})
+    row = result.fetchone()
+    return str(row[0]) if row else None
+
+
+async def find_or_create_application(db: AsyncSession, job_id: str) -> str:
+    """Get the application for a job, creating one (status='applied') if none exists yet"""
+    result = await db.execute(text("""
+        SELECT id FROM applications WHERE job_id = :job_id AND is_deleted = FALSE
+        ORDER BY created_at DESC LIMIT 1
+    """), {"job_id": job_id})
+    row = result.fetchone()
+    if row:
+        return str(row[0])
+
+    import uuid
+    application_id = str(uuid.uuid4())
+    await db.execute(text("""
+        INSERT INTO applications (id, job_id, status)
+        VALUES (:id, :job_id, 'applied')
+    """), {"id": application_id, "job_id": job_id})
+    await db.commit()
+    return application_id
+
+
+async def find_existing_interview(db: AsyncSession, application_id: str, interview_date, round_num: int):
+    """Dedupe guard — same application + same date + same round is treated as the same interview"""
+    result = await db.execute(text("""
+        SELECT id FROM interviews
+        WHERE application_id = :application_id
+        AND interview_date = :interview_date
+        AND round = :round_num
+    """), {"application_id": application_id, "interview_date": interview_date, "round_num": round_num})
+    row = result.fetchone()
+    return str(row[0]) if row else None
+
+
+async def save_interview(db: AsyncSession, application_id: str, round_num: int, format: str,
+                         interview_date, interviewer_name: str = None, notes: str = None) -> str:
+    import uuid
+    interview_id = str(uuid.uuid4())
+    await db.execute(text("""
+        INSERT INTO interviews (id, application_id, round, format, interview_date, interviewer_name, notes)
+        VALUES (:id, :application_id, :round_num, :format, :interview_date, :interviewer_name, :notes)
+    """), {
+        "id": interview_id,
+        "application_id": application_id,
+        "round_num": round_num,
+        "format": format,
+        "interview_date": interview_date,
+        "interviewer_name": interviewer_name,
+        "notes": notes,
+    })
+    await db.commit()
+    return interview_id
+
+
+async def list_interviews(db: AsyncSession) -> list:
+    result = await db.execute(text("""
+        SELECT i.id, j.company, j.role, i.round, i.format, i.interview_date,
+               i.interviewer_name, i.outcome, i.notes, a.id as application_id
+        FROM interviews i
+        JOIN applications a ON a.id = i.application_id
+        JOIN jobs j ON j.id = a.job_id
+        WHERE j.is_deleted = FALSE
+        ORDER BY i.interview_date ASC NULLS LAST
+    """))
+    return [{
+        "id": str(row[0]),
+        "company": row[1],
+        "role": row[2],
+        "round": row[3],
+        "format": row[4],
+        "interview_date": str(row[5]) if row[5] else None,
+        "interviewer_name": row[6],
+        "outcome": row[7],
+        "notes": row[8],
+        "application_id": str(row[9]),
+    } for row in result.fetchall()]

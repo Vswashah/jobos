@@ -47,10 +47,44 @@ tab and update:
   redeploy of the frontend** (Vite bakes this in at build time, changing the
   env var alone doesn't update the already-built assets)
 
-## 6. Add your secret keys
-On `jobos-backend`, fill in the env vars marked `sync: false` in
-`render.yaml` (`GROQ_API_KEY`, `GEMINI_API_KEY`, `AWS_*`) if those features are
-in use — the app runs without them, they're just unset otherwise.
+## 6. Set up Gmail interview detection
+
+This is optional — the app runs fine without it, Interviews just stays
+manual-only. Two things to obtain and put into `jobos-backend`'s
+**Environment** tab (they're marked `sync: false` in `render.yaml`, so Render
+will prompt for them on the next blueprint sync):
+
+**Groq API key** (parses email text into structured interview details):
+Sign up free at [console.groq.com](https://console.groq.com) → **API Keys** →
+create one → paste into `GROQ_API_KEY`.
+
+**Google OAuth credentials** (read-only Gmail access):
+1. [console.cloud.google.com](https://console.cloud.google.com) → create a
+   new project (any name, e.g. "JobOS").
+2. **APIs & Services → Library** → search "Gmail API" → **Enable**.
+3. **APIs & Services → OAuth consent screen** → User type **External** → fill
+   in app name + your email → under **Scopes**, add
+   `https://www.googleapis.com/auth/gmail.readonly` → under **Test users**,
+   add your own Gmail address. (The app stays in "Testing" mode indefinitely
+   — that's fine, and avoids Google's app-review process, since you're the
+   only user.)
+4. **APIs & Services → Credentials** → **Create Credentials → OAuth client
+   ID** → Application type **Web application** → under **Authorized redirect
+   URIs**, add both:
+   - `https://jobos-backend.onrender.com/api/gmail/callback` (or your actual
+     backend URL from step 5)
+   - `http://localhost:8000/api/gmail/callback` (for local testing)
+5. Copy the **Client ID** and **Client Secret** → paste into
+   `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` on `jobos-backend`.
+
+Once both are set, open the deployed frontend → **Interviews** →
+**Connect Gmail**, sign in with the Google account you added as a test user,
+and approve access. You'll land back on Interviews; click **Sync Now**
+whenever you want to scan for new interview emails (there's no automatic
+background polling — Render's free tier has no persistent worker for that,
+so sync is on-demand by design).
+
+`GEMINI_API_KEY` and `AWS_*` still aren't read by any code — ignore those.
 
 ## 7. Verify
 - `https://<backend-url>/health` → `{"status": "healthy"}`

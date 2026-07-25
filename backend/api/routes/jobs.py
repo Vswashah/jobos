@@ -138,3 +138,17 @@ async def get_streak(db: AsyncSession = Depends(get_db)):
         "active_today": active_today,
         "grid": grid,
     }
+
+
+@router.get("/top-skills")
+async def get_top_skills(db: AsyncSession = Depends(get_db), limit: int = 8):
+    """Most frequently required skills across every analyzed JD"""
+    result = await db.execute(text("""
+        SELECT skill, COUNT(*) as cnt
+        FROM jobs, unnest(required_skills) as skill
+        WHERE is_deleted = FALSE
+        GROUP BY skill
+        ORDER BY cnt DESC, skill ASC
+        LIMIT :limit
+    """), {"limit": limit})
+    return {"skills": [{"skill": row[0], "count": row[1]} for row in result.fetchall()]}

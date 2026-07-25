@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { API_BASE } from '../config'
+import ActivityTrendChart from '../components/ActivityTrendChart'
+import TopSkillsChart from '../components/TopSkillsChart'
 
 interface Stats {
   total_analyzed: number
@@ -24,10 +26,16 @@ interface Streak {
   grid: Array<{ date: string; count: number }>
 }
 
+interface SkillCount {
+  skill: string
+  count: number
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [activity, setActivity] = useState<Activity[]>([])
   const [streak, setStreak] = useState<Streak | null>(null)
+  const [topSkills, setTopSkills] = useState<SkillCount[]>([])
 
   useEffect(() => {
     fetch(`${API_BASE}/api/jobs/analytics`)
@@ -41,6 +49,11 @@ export default function Dashboard() {
     fetch(`${API_BASE}/api/jobs/streak`)
       .then(r => r.json())
       .then(setStreak)
+      .catch(() => {})
+
+    fetch(`${API_BASE}/api/jobs/top-skills`)
+      .then(r => r.json())
+      .then(data => setTopSkills(data.skills || []))
       .catch(() => {})
   }, [])
 
@@ -96,45 +109,58 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Activity Streak */}
-      <div className="bg-ink-900 rounded-2xl p-6 mb-4 shadow-sm">
-        <div className="flex items-start justify-between mb-5">
-          <div>
-            <h3 className="text-lg font-bold text-cream-50">Activity Streak</h3>
-            <p className="text-xs text-cream-50/40 mt-0.5">Days in a row you've worked your job search</p>
+      {/* Activity Streak + Trend */}
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="bg-ink-900 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <h3 className="text-lg font-bold text-cream-50">Activity Streak</h3>
+              <p className="text-xs text-cream-50/40 mt-0.5">Days in a row you've worked your job search</p>
+            </div>
           </div>
-          <div className="flex items-center gap-6 shrink-0">
-            <div className="text-right">
+
+          <div className="flex items-center gap-6 mb-5">
+            <div>
               <div className="text-3xl font-extrabold text-gold-400">
                 {streak ? streak.current_streak : '—'}
                 <span className="text-lg align-top ml-0.5">🔥</span>
               </div>
               <div className="text-xs text-cream-50/40">current</div>
             </div>
-            <div className="text-right">
+            <div>
               <div className="text-3xl font-extrabold text-cream-50">{streak ? streak.longest_streak : '—'}</div>
               <div className="text-xs text-cream-50/40">longest</div>
             </div>
           </div>
+
+          {streak ? (
+            <div className="flex gap-1 overflow-x-auto pb-1">
+              {weeks.map((week, wi) => (
+                <div key={wi} className="flex flex-col gap-1">
+                  {week.map(day => (
+                    <div
+                      key={day.date}
+                      title={`${day.date}: ${day.count} action${day.count === 1 ? '' : 's'}`}
+                      className={`w-3 h-3 rounded-[3px] ${dotClass(day.count)}`}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="h-[92px]" />
+          )}
         </div>
 
-        {streak ? (
-          <div className="flex gap-1 overflow-x-auto pb-1">
-            {weeks.map((week, wi) => (
-              <div key={wi} className="flex flex-col gap-1">
-                {week.map(day => (
-                  <div
-                    key={day.date}
-                    title={`${day.date}: ${day.count} action${day.count === 1 ? '' : 's'}`}
-                    className={`w-3 h-3 rounded-[3px] ${dotClass(day.count)}`}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="h-[92px]" />
-        )}
+        <div className="bg-ink-900 rounded-2xl p-6 shadow-sm">
+          <h3 className="text-lg font-bold text-cream-50">Activity Trend</h3>
+          <p className="text-xs text-cream-50/40 mt-0.5 mb-5">Actions per day, last 30 days</p>
+          {streak ? (
+            <ActivityTrendChart data={streak.grid.slice(-30)} />
+          ) : (
+            <div className="h-[110px]" />
+          )}
+        </div>
       </div>
 
       {/* Pipeline */}
@@ -156,6 +182,14 @@ export default function Dashboard() {
           ))}
         </div>
       </div>
+
+      {/* Top Skills */}
+      {topSkills.length > 0 && (
+        <div className="bg-white rounded-2xl border border-ink-900/5 p-6 mb-4 shadow-sm">
+          <h3 className="text-lg font-bold text-ink-900 mb-4">Top Skills in JDs</h3>
+          <TopSkillsChart data={topSkills} />
+        </div>
+      )}
 
       {/* Recent Activity */}
       <div className="bg-white rounded-2xl border border-ink-900/5 p-6 shadow-sm">

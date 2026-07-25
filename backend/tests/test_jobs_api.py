@@ -37,6 +37,27 @@ def test_analytics_returns_stats_keys(client):
     assert "recent_activity" in data
 
 
+def test_top_skills_returns_expected_shape(client):
+    res = client.get("/api/jobs/top-skills")
+    assert res.status_code == 200
+    skills = res.json()["skills"]
+    assert isinstance(skills, list)
+    assert len(skills) <= 8
+    for entry in skills:
+        assert "skill" in entry
+        assert isinstance(entry["count"], int)
+        assert entry["count"] >= 1
+    # sorted descending by count
+    counts = [s["count"] for s in skills]
+    assert counts == sorted(counts, reverse=True)
+
+
+def test_top_skills_respects_limit(client):
+    res = client.get("/api/jobs/top-skills?limit=3")
+    assert res.status_code == 200
+    assert len(res.json()["skills"]) <= 3
+
+
 def test_streak_returns_expected_shape(client):
     res = client.get("/api/jobs/streak")
     assert res.status_code == 200

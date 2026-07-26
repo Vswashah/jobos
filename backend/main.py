@@ -56,6 +56,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Content-Disposition isn't in the CORS response-header safelist by
+    # default — without this, frontend JS can't read the server-suggested
+    # filename on a cross-origin fetch (which every deploy is: frontend and
+    # backend are separately-hosted origins).
+    expose_headers=["Content-Disposition"],
 )
 
 SKILLS_TEMPLATE = {

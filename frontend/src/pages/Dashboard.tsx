@@ -31,7 +31,11 @@ interface SkillCount {
   count: number
 }
 
-export default function Dashboard() {
+interface Props {
+  userName: string
+}
+
+export default function Dashboard({ userName }: Props) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [activity, setActivity] = useState<Activity[]>([])
   const [streak, setStreak] = useState<Streak | null>(null)
@@ -94,7 +98,7 @@ export default function Dashboard() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h2 className="text-3xl font-extrabold text-ink-900 tracking-tight">Welcome back, Vishwaa 👋</h2>
+        <h2 className="text-3xl font-extrabold text-ink-900 tracking-tight">Welcome back, {userName.split(' ')[0]} 👋</h2>
         <p className="text-ink-900/50 mt-1">Your AI-powered job search dashboard</p>
       </div>
 

@@ -76,7 +76,11 @@ export default function AnalyzeJD() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Vishwaa_Shah_${company || 'Resume'}.pdf`
+      // Use the server's actual filename (built from the logged-in user's
+      // real name) rather than assuming who's downloading it.
+      const disposition = res.headers.get('content-disposition') || ''
+      const match = disposition.match(/filename="?([^"]+)"?/)
+      a.download = match ? match[1] : `${company || 'Resume'}.pdf`
       a.click()
       window.URL.revokeObjectURL(url)
     } catch {

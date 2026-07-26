@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Toast from '../components/Toast'
-import { API_BASE } from '../config'
+import { apiFetch } from '../api'
 
 interface Job {
   id: string
@@ -23,7 +23,7 @@ export default function JobDiscovery() {
 
   const loadJobs = () => {
     setLoading(true)
-    fetch(`${API_BASE}/api/jobs/`)
+    apiFetch(`/api/jobs/`)
       .then(r => r.json())
       .then(data => setJobs(data.jobs || []))
       .catch(() => {})
@@ -37,7 +37,7 @@ export default function JobDiscovery() {
   const discoverJobs = async () => {
     setDiscovering(true)
     try {
-      const res = await fetch(`${API_BASE}/api/jobs/discover`, { method: 'POST' })
+      const res = await apiFetch(`/api/jobs/discover`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Discovery failed')
       setToast({ message: `Scanned ${data.scanned} postings — found ${data.found} new role${data.found === 1 ? '' : 's'}` })

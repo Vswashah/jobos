@@ -11,9 +11,13 @@ const nav = [
 interface Props {
   currentPage: Page
   setCurrentPage: (page: Page) => void
+  user: { id: string; name: string }
+  onLogout: () => void
 }
 
-export default function Sidebar({ currentPage, setCurrentPage }: Props) {
+export default function Sidebar({ currentPage, setCurrentPage, user, onLogout }: Props) {
+  const initial = user.name.trim().charAt(0).toUpperCase() || '?'
+
   return (
     <aside className="w-64 bg-ink-900 rounded-[24px] flex flex-col shrink-0">
       <div className="px-6 py-6">
@@ -38,11 +42,16 @@ export default function Sidebar({ currentPage, setCurrentPage }: Props) {
       </nav>
       <div className="mx-4 mb-4 p-4 rounded-2xl bg-white/5">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-gold-400 flex items-center justify-center text-ink-900 text-sm font-bold shrink-0">V</div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-cream-50 truncate">Vishwaa Shah</p>
-            <p className="text-xs text-cream-50/50 truncate">M.S. CS @ UTD</p>
+          <div className="w-9 h-9 rounded-full bg-gold-400 flex items-center justify-center text-ink-900 text-sm font-bold shrink-0">{initial}</div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-cream-50 truncate">{user.name}</p>
           </div>
+          <button
+            onClick={onLogout}
+            className="text-xs font-semibold text-cream-50/40 hover:text-cream-50 shrink-0"
+          >
+            Log out
+          </button>
         </div>
       </div>
     </aside>

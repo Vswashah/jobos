@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { apiFetch } from '../api'
 
 interface Props {
-  onAuthenticated: (user: { id: string; name: string }) => void
+  onAuthenticated: (user: { id: string; name: string; onboarding_completed: boolean }) => void
 }
 
 export default function Login({ onAuthenticated }: Props) {
@@ -48,7 +48,7 @@ export default function Login({ onAuthenticated }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Something went wrong')
-      onAuthenticated({ id: data.id, name: data.name })
+      onAuthenticated({ id: data.id, name: data.name, onboarding_completed: data.onboarding_completed })
     } catch (e: any) {
       setError(e.message || 'Something went wrong')
     } finally {

@@ -3,6 +3,7 @@ import type { Page } from './types'
 import { apiFetch } from './api'
 import Sidebar from './components/Sidebar'
 import Login from './pages/Login'
+import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import AnalyzeJD from './pages/AnalyzeJD'
 import JobDiscovery from './pages/JobDiscovery'
@@ -17,6 +18,7 @@ const initialPage: Page = new URLSearchParams(window.location.search).get('gmail
 interface User {
   id: string
   name: string
+  onboarding_completed: boolean
 }
 
 export default function App() {
@@ -43,6 +45,15 @@ export default function App() {
 
   if (!user) {
     return <Login onAuthenticated={setUser} />
+  }
+
+  if (!user.onboarding_completed) {
+    return (
+      <Onboarding
+        userName={user.name}
+        onComplete={() => setUser(u => (u ? { ...u, onboarding_completed: true } : u))}
+      />
+    )
   }
 
   return (

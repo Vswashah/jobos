@@ -57,11 +57,11 @@ async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depen
         raise HTTPException(status_code=400, detail="Name is required and password must be at least 8 characters")
 
     existing = (await db.execute(text("""
-        SELECT id, password_hash FROM user_profiles WHERE LOWER(email) = LOWER(:email) AND is_deleted = FALSE
+        SELECT id, password_hash, onboarding_completed FROM user_profiles WHERE LOWER(email) = LOWER(:email) AND is_deleted = FALSE
     """), {"email": payload.email})).fetchone()
 
     if existing:
-        user_id, existing_hash = str(existing[0]), existing[1]
+        user_id, existing_hash, onboarding_completed = str(existing[0]), existing[1], existing[2]
         if existing_hash:
             raise HTTPException(status_code=409, detail="An account with this email already exists")
         # A profile row exists (e.g. pre-seeded demo data) but has never had
@@ -80,7 +80,7 @@ async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depen
         })
         await db.commit()
         _set_session_cookie(response, user_id)
-        return {"id": user_id, "name": name, "email": payload.email, "claimed": True}
+        return {"id": user_id, "name": name, "email": payload.email, "claimed": True, "onboarding_completed": onboarding_completed}
 
     user_id = str(uuid.uuid4())
     await db.execute(text("""
@@ -95,13 +95,13 @@ async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depen
     })
     await db.commit()
     _set_session_cookie(response, user_id)
-    return {"id": user_id, "name": name, "email": payload.email, "claimed": False}
+    return {"id": user_id, "name": name, "email": payload.email, "claimed": False, "onboarding_completed": False}
 
 
 @router.post("/login")
 async def login(payload: LoginIn, response: Response, db: AsyncSession = Depends(get_db)):
     row = (await db.execute(text("""
-        SELECT id, password_hash, name FROM user_profiles
+        SELECT id, password_hash, name, onboarding_completed FROM user_profiles
         WHERE LOWER(email) = LOWER(:email) AND is_deleted = FALSE
     """), {"email": payload.email})).fetchone()
 
@@ -110,7 +110,7 @@ async def login(payload: LoginIn, response: Response, db: AsyncSession = Depends
 
     user_id = str(row[0])
     _set_session_cookie(response, user_id)
-    return {"id": user_id, "name": row[2]}
+    return {"id": user_id, "name": row[2], "onboarding_completed": row[3]}
 
 
 @router.post("/logout")
@@ -125,8 +125,8 @@ async def logout(response: Response):
 @router.get("/me")
 async def me(user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     row = (await db.execute(text("""
-        SELECT id, name, email FROM user_profiles WHERE id = :id AND is_deleted = FALSE
+        SELECT id, name, email, onboarding_completed FROM user_profiles WHERE id = :id AND is_deleted = FALSE
     """), {"id": user_id})).fetchone()
     if not row:
         raise HTTPException(status_code=401, detail="Session refers to a deleted account")
-    return {"id": str(row[0]), "name": row[1], "email": row[2]}
+    return {"id": str(row[0]), "name": row[1], "email": row[2], "onboarding_completed": row[3]}

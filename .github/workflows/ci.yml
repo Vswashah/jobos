@@ -49,6 +49,7 @@ jobs:
         run: |
           PGPASSWORD=jobos123 psql -h localhost -U jobos -d jobos -f backend/db/migrations/001_initial.sql
           PGPASSWORD=jobos123 psql -h localhost -U jobos -d jobos -f backend/db/migrations/002_multi_user.sql
+          PGPASSWORD=jobos123 psql -h localhost -U jobos -d jobos -f backend/db/migrations/003_onboarding_profile.sql
 
       - name: Seed database
         run: |

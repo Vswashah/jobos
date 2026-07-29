@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.database import get_db
 from services import gmail_service, db_service
-from services.auth_service import get_current_user_id
+from services.auth_service import get_current_user_id, create_access_token, decode_access_token
 from services.interview_extractor import extract_interview_details
 
 router = APIRouter(prefix="/gmail", tags=["gmail"])
@@ -30,22 +30,28 @@ async def gmail_status(user_id: str = Depends(get_current_user_id), db: AsyncSes
 
 @router.get("/authorize")
 async def gmail_authorize(user_id: str = Depends(get_current_user_id)):
-    # Not otherwise used (identity comes from the session cookie, which
-    # persists through the redirect chain since it's SameSite=None in
-    # production) — depending on get_current_user_id here just ensures
-    # you must be logged into JobOS before starting the Google OAuth flow.
+    # redirect_uri must be the backend's own real domain (that's what's
+    # registered with Google) — Google's redirect back to /callback lands
+    # there directly, not through the frontend proxy, so it doesn't carry
+    # the session cookie (which is scoped to the frontend's origin since
+    # that's the only origin the browser ever sees it set from). state
+    # carries the user's identity through that gap instead — it's a JWT,
+    # so /callback can trust it without needing the cookie.
     if not gmail_service.GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID is not configured on the server")
-    return RedirectResponse(gmail_service.get_authorization_url())
+    return RedirectResponse(gmail_service.get_authorization_url(state=create_access_token(user_id)))
 
 
 @router.get("/callback")
 async def gmail_callback(code: str | None = None, error: str | None = None,
-                         user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+                         state: str | None = None, db: AsyncSession = Depends(get_db)):
     if error:
         raise HTTPException(status_code=400, detail=f"Google OAuth error: {error}")
     if not code:
         raise HTTPException(status_code=400, detail="Missing authorization code")
+    if not state:
+        raise HTTPException(status_code=400, detail="Missing state")
+    user_id = decode_access_token(state)
 
     tokens = await gmail_service.exchange_code_for_tokens(code)
     refresh_token = tokens.get("refresh_token")

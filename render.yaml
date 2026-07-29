@@ -54,9 +54,13 @@ services:
       # Must come before the SPA-fallback rule below — first match wins,
       # and the catch-all would otherwise swallow /api/* requests and
       # serve index.html instead of proxying them to the backend.
+      # :splat captures the whole matched path including the literal "api"
+      # segment (verified empirically against the deployed rule — a
+      # destination of .../api/:splat double-prefixed every request to
+      # .../api/api/...), so the destination doesn't repeat /api itself.
       - type: rewrite
         source: /api/*
-        destination: https://jobos-backend.onrender.com/api/:splat
+        destination: https://jobos-backend.onrender.com/:splat
       - type: rewrite
         source: /*
         destination: /index.html

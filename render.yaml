@@ -54,13 +54,14 @@ services:
       # Must come before the SPA-fallback rule below — first match wins,
       # and the catch-all would otherwise swallow /api/* requests and
       # serve index.html instead of proxying them to the backend.
-      # :splat captures the whole matched path including the literal "api"
-      # segment (verified empirically against the deployed rule — a
-      # destination of .../api/:splat double-prefixed every request to
-      # .../api/api/...), so the destination doesn't repeat /api itself.
+      #
+      # Render's wildcard token is a literal "*" reused in the destination
+      # (Netlify's :splat convention doesn't apply here) — confirmed via
+      # backend logs showing requests literally hitting /%3Asplat
+      # (URL-encoded ":splat") when that token was used instead.
       - type: rewrite
         source: /api/*
-        destination: https://jobos-backend.onrender.com/:splat
+        destination: https://jobos-backend.onrender.com/api/*
       - type: rewrite
         source: /*
         destination: /index.html

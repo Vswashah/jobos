@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.database import get_db
 from services import gmail_service, db_service
-from services.auth_service import get_current_user_id, create_access_token, decode_access_token
+from services.auth_service import get_current_user_id
 from services.interview_extractor import extract_interview_details
 
 router = APIRouter(prefix="/gmail", tags=["gmail"])
@@ -30,28 +30,29 @@ async def gmail_status(user_id: str = Depends(get_current_user_id), db: AsyncSes
 
 @router.get("/authorize")
 async def gmail_authorize(user_id: str = Depends(get_current_user_id)):
-    # redirect_uri must be the backend's own real domain (that's what's
-    # registered with Google) — Google's redirect back to /callback lands
-    # there directly, not through the frontend proxy, so it doesn't carry
-    # the session cookie (which is scoped to the frontend's origin since
-    # that's the only origin the browser ever sees it set from). state
-    # carries the user's identity through that gap instead — it's a JWT,
-    # so /callback can trust it without needing the cookie.
+    # Not otherwise used — identity at /callback comes from the session
+    # cookie, same as here. That only works because GOOGLE_REDIRECT_URI
+    # points at the frontend's domain (proxied through to this backend by
+    # its rewrite rule), so the browser's landing navigation still carries
+    # the cookie. Pointing it at the backend's own domain directly seems
+    # more obvious, but breaks this: the cookie is scoped to whichever
+    # origin the browser saw it get set from (the frontend's, post-proxy),
+    # and Google doesn't reliably echo a custom `state` param back through
+    # every sign-in flow variant to carry identity across that gap instead
+    # (confirmed empirically — an ordinary account-picker flow landed back
+    # with only code/scope/iss, no state, at all).
     if not gmail_service.GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID is not configured on the server")
-    return RedirectResponse(gmail_service.get_authorization_url(state=create_access_token(user_id)))
+    return RedirectResponse(gmail_service.get_authorization_url())
 
 
 @router.get("/callback")
 async def gmail_callback(code: str | None = None, error: str | None = None,
-                         state: str | None = None, db: AsyncSession = Depends(get_db)):
+                         user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     if error:
         raise HTTPException(status_code=400, detail=f"Google OAuth error: {error}")
     if not code:
         raise HTTPException(status_code=400, detail="Missing authorization code")
-    if not state:
-        raise HTTPException(status_code=400, detail="Missing state")
-    user_id = decode_access_token(state)
 
     tokens = await gmail_service.exchange_code_for_tokens(code)
     refresh_token = tokens.get("refresh_token")

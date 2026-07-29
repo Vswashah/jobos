@@ -27,8 +27,19 @@ services:
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
+      # Points at the frontend's domain, not the backend's — /api/* is
+      # proxied through to the backend by the frontend's rewrite rule, so
+      # the browser's navigation back here still carries the (frontend-
+      # scoped) session cookie. Registering the backend's own domain here
+      # instead seemed more direct, but Google doesn't reliably echo a
+      # custom `state` param back through every sign-in flow variant
+      # (confirmed empirically: the callback landed with only
+      # iss/code/scope, no state, on an ordinary account-picker flow) —
+      # so state can't carry identity through a direct-to-backend redirect
+      # either. Routing through the already-cookie-carrying proxy sidesteps
+      # that entirely.
       - key: GOOGLE_REDIRECT_URI
-        value: https://jobos-backend.onrender.com/api/gmail/callback
+        value: https://jobos-frontend-5de2.onrender.com/api/gmail/callback
       - key: FRONTEND_URL
         value: https://jobos-frontend-5de2.onrender.com
       # GEMINI_API_KEY, AWS_* aren't read by any code yet — add them in the

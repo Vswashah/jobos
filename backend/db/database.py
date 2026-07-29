@@ -25,7 +25,11 @@ if sslmode and sslmode != "disable":
     query["ssl"] = "require"
 DATABASE_URL = urlunsplit(parts._replace(query=urlencode(query)))
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+# pool_pre_ping: Neon's serverless Postgres scales to zero when idle, which
+# silently drops any connection sitting in the pool. Without this, the next
+# request to reuse that connection gets a raw asyncpg error (not something
+# get_db() retries), surfacing as an unhandled 500 on any DB-touching route.
+engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 
 AsyncSessionLocal = async_sessionmaker(
     engine,

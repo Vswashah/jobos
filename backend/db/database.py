@@ -10,9 +10,9 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://jobos:jobos123@localhost:5432/jobos")
 
 # Managed Postgres providers (Render, Heroku, Neon, etc.) hand back a plain
-# postgres:// or postgresql:// URL, often with a libpq-style `sslmode` query
-# param — normalize the scheme to asyncpg and translate `sslmode` since
-# asyncpg's connect() doesn't recognize that keyword (it wants `ssl`).
+# postgres:// or postgresql:// URL, often with libpq-style query params that
+# asyncpg's connect() doesn't accept as keyword arguments — normalize the
+# scheme to asyncpg and translate/drop those params.
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
 elif DATABASE_URL.startswith("postgresql://"):
@@ -23,6 +23,12 @@ query = dict(parse_qsl(parts.query))
 sslmode = query.pop("sslmode", None)
 if sslmode and sslmode != "disable":
     query["ssl"] = "require"
+# Neon's connection strings include this by default (a SCRAM security
+# setting) — asyncpg negotiates channel binding on its own as part of TLS
+# and doesn't take it as an explicit connect() kwarg, so passing it through
+# raises TypeError: connect() got an unexpected keyword argument
+# 'channel_binding' on every single connection attempt.
+query.pop("channel_binding", None)
 DATABASE_URL = urlunsplit(parts._replace(query=urlencode(query)))
 
 # pool_pre_ping: Neon's serverless Postgres scales to zero when idle, which

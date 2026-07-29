@@ -43,9 +43,20 @@ services:
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     envVars:
+      # Left empty on purpose — the frontend calls relative /api/... paths,
+      # proxied to the backend by the rewrite rule below. That keeps the
+      # browser's view of everything same-origin, so the session cookie is
+      # first-party instead of cross-site (which Safari, and increasingly
+      # Chrome, block outright regardless of SameSite=None).
       - key: VITE_API_BASE
-        value: https://jobos-backend.onrender.com
+        value: ""
     routes:
+      # Must come before the SPA-fallback rule below — first match wins,
+      # and the catch-all would otherwise swallow /api/* requests and
+      # serve index.html instead of proxying them to the backend.
+      - type: rewrite
+        source: /api/*
+        destination: https://jobos-backend.onrender.com/api/:splat
       - type: rewrite
         source: /*
         destination: /index.html

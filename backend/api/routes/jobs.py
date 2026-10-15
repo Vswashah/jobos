@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from db.database import get_db
 from services.auth_service import get_current_user_id
-from services import db_service, job_discovery_service
+from services import db_service, job_discovery_service, rate_limit
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -52,7 +52,7 @@ async def get_jobs(user_id: str = Depends(get_current_user_id), db: AsyncSession
     }
 
 
-@router.post("/discover")
+@router.post("/discover", dependencies=[Depends(rate_limit.limit_user("discover", 5, 3600))])
 async def discover_jobs_endpoint(user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     """Search the live web (via Grok) for F1/OPT-eligible postings and save new ones."""
     skills = await db_service.get_user_skills(db, user_id)

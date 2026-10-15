@@ -12,7 +12,28 @@ from fastapi import Cookie, HTTPException
 
 # Derived rather than used raw — HS256 wants >=32 bytes, and SECRET_KEY (an
 # env var shared with other uses) isn't guaranteed to be that long itself.
-_raw_secret = os.getenv("SECRET_KEY", "dev-only-insecure-secret-change-me")
+_PLACEHOLDER_SECRETS = {"", "change-me", "dev-only-insecure-secret-change-me"}
+_MIN_SECRET_LENGTH = 16
+
+
+def load_secret() -> str:
+    """The signing secret. Outside local development (DEBUG=true) a missing,
+    placeholder or very short SECRET_KEY stops the app from starting, rather
+    than silently signing sessions with a key that is public in this repo."""
+    raw = os.getenv("SECRET_KEY", "")
+    if os.getenv("DEBUG", "false").lower() == "true":
+        return raw or "dev-only-insecure-secret-change-me"
+    if raw in _PLACEHOLDER_SECRETS or len(raw) < _MIN_SECRET_LENGTH:
+        raise RuntimeError(
+            "SECRET_KEY is missing, a placeholder, or shorter than "
+            f"{_MIN_SECRET_LENGTH} characters. Set a long random value, e.g. "
+            "python -c \"import secrets; print(secrets.token_urlsafe(48))\" "
+            "(or set DEBUG=true for local development only)."
+        )
+    return raw
+
+
+_raw_secret = load_secret()
 JWT_SIGNING_KEY = hashlib.sha256(_raw_secret.encode("utf-8")).digest()
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 30

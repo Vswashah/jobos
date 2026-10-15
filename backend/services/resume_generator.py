@@ -89,7 +89,7 @@ def generate_resume_autofit(profile, skills, experience, projects, education, ou
         try:
             _generate_with_multiplier(profile, skills, experience, projects, education, tmp, research=research, multiplier=m)
             import subprocess
-            subprocess.run([LIBREOFFICE, "--headless", "--convert-to", "pdf", "--outdir", output_dir, tmp], capture_output=True)
+            subprocess.run([LIBREOFFICE, "--headless", "--convert-to", "pdf", "--outdir", output_dir, tmp], capture_output=True, timeout=60)
             doc = fitz.open(tmp_pdf)
             pages = len(doc)
             blocks = doc[0].get_text("blocks")

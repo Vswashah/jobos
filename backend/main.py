@@ -17,11 +17,9 @@ from utils.skill_matcher import match_skills
 from utils.project_scorer import select_projects
 from utils.experience_selector import select_experience
 from services.resume_generator import (
-    generate_resume,
     generate_resume_autofit,
     DEFAULT_PROFILE,
     DEFAULT_EDUCATION,
-    DEFAULT_EXPERIENCE,
     DEFAULT_RESEARCH,
 )
 from db.database import get_db, init_db
@@ -71,19 +69,6 @@ SKILLS_TEMPLATE = {
     "Data": "Apache Kafka, pandas, NumPy, Prometheus, Grafana, ETL pipelines",
     "Frontend": "React.js, TypeScript, Next.js, HTML5, CSS3",
 }
-
-
-def select_experience_for_resume(extracted_skills, domain, max_jobs=3, experience=None):
-    exp_list = experience if experience else DEFAULT_EXPERIENCE
-    selected_experience = select_experience(
-        experience=exp_list,
-        extracted_skills=extracted_skills,
-        domain=domain,
-        max_jobs=max_jobs,
-    )
-    if len(selected_experience) < max_jobs:
-        selected_experience = exp_list[:max_jobs]
-    return selected_experience
 
 
 class JDRequest(BaseModel):
@@ -137,68 +122,6 @@ async def analyze_jd(request: JDRequest, user_id: str = Depends(get_current_user
     }
 
 
-@app.post("/api/resumes/generate")
-async def generate_resume_endpoint(request: JDRequest, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
-    """Full pipeline — analyze JD and generate tailored DOCX resume."""
-    # Fetch from DB
-    user_skills = await get_user_skills(db, user_id)
-    user_projects = await get_user_projects(db, user_id)
-    user_experience = await get_user_experience(db, user_id)
-    user_profile = await get_user_profile(db, user_id)
-
-    # Step 1 — Extract and match
-    extracted = extract_skills(request.jd_text)
-    match = match_skills(extracted["all_skills"], user_skills)
-    projects_result = select_projects(
-        projects=user_projects,
-        extracted_skills=extracted["all_skills"],
-        team_focus=request.team_focus,
-        max_projects=3
-    )
-
-    selected_projects = projects_result["selected"]
-    selected_experience = select_experience_for_resume(
-        extracted_skills=extracted["all_skills"],
-        domain=(selected_projects[0].get("domains") or ["fullstack"])[0] if selected_projects else "fullstack",
-        experience=user_experience,
-        max_jobs=3,
-    )
-
-    # Step 2 — Generate resume file
-    person_name = (user_profile.get("name") or "Resume").replace(' ', '_')
-    filename = f"{person_name}_{request.company.replace(' ', '_')}.docx"
-    output_path = f"/tmp/jobos_resumes/{user_id}_{filename}"
-    os.makedirs("/tmp/jobos_resumes", exist_ok=True)
-
-    include_research = any(
-        s in extracted["all_skills"]
-        for s in ["pytorch", "scikit-learn", "langchain", "llm", "machine learning"]
-    ) or "research" in (request.team_focus or "").lower()
-
-    generate_resume(
-        profile=user_profile or DEFAULT_PROFILE,
-        skills=SKILLS_TEMPLATE,
-        experience=selected_experience,
-        projects=selected_projects,
-        education=DEFAULT_EDUCATION,
-        research=DEFAULT_RESEARCH if include_research else None,
-        output_path=output_path,
-        company_name=request.company,
-        role_name=request.role,
-    )
-
-    # Save to DB
-    await save_resume(db, user_id, job_id=None, file_path=output_path,
-        skills_included=match["matching"],
-        projects_selected=[p["name"] for p in selected_projects],
-        experience_selected=[e["title"] for e in selected_experience])
-    await log_activity(db, user_id, "resume_generated", "resume", metadata={"company": request.company})
-
-    return FileResponse(
-        path=output_path,
-        filename=filename,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
 @app.post("/api/resumes/generate-pdf")
 async def generate_pdf_endpoint(request: JDRequest, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     """Full pipeline — analyze JD and generate tailored PDF resume."""
@@ -221,7 +144,7 @@ async def generate_pdf_endpoint(request: JDRequest, user_id: str = Depends(get_c
     )
 
     selected_projects = projects_result["selected"]
-    selected_experience = select_experience_for_resume(
+    selected_experience = select_experience(
         extracted_skills=extracted["all_skills"],
         domain=(selected_projects[0].get("domains") or ["fullstack"])[0] if selected_projects else "fullstack",
         experience=user_experience,

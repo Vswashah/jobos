@@ -1,11 +1,13 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from loguru import logger
+import logging
 from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://jobos:jobos123@localhost:5432/jobos")
 

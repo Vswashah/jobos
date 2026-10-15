@@ -5,6 +5,7 @@ authenticated caller), obtained via services.auth_service.get_current_user_id.
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import json
+import uuid
 
 async def get_user_skills(db: AsyncSession, user_id: str) -> list:
     """Fetch all verified skills as a list of names"""
@@ -96,7 +97,6 @@ async def save_job(db: AsyncSession, user_id: str, company: str, role: str, jd_t
                    h1b_sponsor: bool = None, f1_eligible: bool = True,
                    deadline: str = None) -> str:
     """Save analyzed job to database, return job ID"""
-    import uuid
     job_id = str(uuid.uuid4())
     await db.execute(text("""
         INSERT INTO jobs (id, user_id, company, role, jd_text, required_skills,
@@ -132,7 +132,6 @@ async def save_resume(db: AsyncSession, user_id: str, job_id: str, file_path: st
                       skills_included: list, projects_selected: list,
                       experience_selected: list) -> str:
     """Save generated resume to database"""
-    import uuid
     resume_id = str(uuid.uuid4())
     await db.execute(text("""
         INSERT INTO resumes (id, user_id, job_id, file_path, skills_included,
@@ -155,7 +154,6 @@ async def save_resume(db: AsyncSession, user_id: str, job_id: str, file_path: st
 async def log_activity(db: AsyncSession, user_id: str, action: str, entity_type: str,
                        entity_id: str = None, metadata: dict = None):
     """Log activity for dashboard recent activity"""
-    import uuid, json
     await db.execute(text("""
         INSERT INTO activity_log (id, user_id, action, entity_type, entity_id, metadata)
         VALUES (:id, :user_id, :action, :entity_type, :entity_id, :metadata)
@@ -181,7 +179,6 @@ async def get_setting(db: AsyncSession, user_id: str, key: str) -> str | None:
 
 
 async def set_setting(db: AsyncSession, user_id: str, key: str, value: str, category: str = "gmail"):
-    import uuid
     await db.execute(text("""
         INSERT INTO settings (id, user_id, key, value, category)
         VALUES (:id, :user_id, :key, :value, :category)
@@ -235,7 +232,6 @@ async def find_or_create_application(db: AsyncSession, job_id: str) -> str:
     if row:
         return str(row[0])
 
-    import uuid
     application_id = str(uuid.uuid4())
     await db.execute(text("""
         INSERT INTO applications (id, job_id, status)
@@ -259,7 +255,6 @@ async def find_existing_interview(db: AsyncSession, application_id: str, intervi
 
 async def save_interview(db: AsyncSession, application_id: str, round_num: int, format: str,
                          interview_date, interviewer_name: str = None, notes: str = None) -> str:
-    import uuid
     interview_id = str(uuid.uuid4())
     await db.execute(text("""
         INSERT INTO interviews (id, application_id, round, format, interview_date, interviewer_name, notes)

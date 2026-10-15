@@ -42,10 +42,6 @@ services:
         value: https://jobos-frontend-5de2.onrender.com/api/gmail/callback
       - key: FRONTEND_URL
         value: https://jobos-frontend-5de2.onrender.com
-      # GEMINI_API_KEY, AWS_* aren't read by any code yet — add them in the
-      # dashboard's Environment tab later if you wire up those features.
-      # Declaring them here as sync:false would block blueprint deploys
-      # until every one has a value.
 
   - type: web
     name: jobos-frontend

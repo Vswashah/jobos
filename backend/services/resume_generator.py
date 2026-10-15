@@ -1,73 +1,3 @@
-DEFAULT_PROFILE = {
-    "name": "Vishwaa Shah",
-    "email": "vishwaa.career@gmail.com",
-    "phone": "+1 (469) 372-0558",
-    "linkedin": "linkedin.com/in/vishwaa-shah",
-    "github": "github.com/Vswashah",
-    "portfolio": "vishwaashah.vercel.app",
-}
-
-DEFAULT_EDUCATION = {
-    "ms_degree": "M.S. Computer Science",
-    "ms_school": "University of Texas at Dallas  |  Data Science Track",
-    "ms_relevant": "Machine Learning, Database Design, Statistical Methods for Data Science, Network Security",
-    "bs_degree": "B.Tech, Computer Engineering",
-    "bs_school": "Sarvajanik College of Engineering & Technology, India",
-}
-
-DEFAULT_EXPERIENCE = [
-
-    {
-        "title": "Software Developer Intern",
-        "company": "Palm Infotech, Surat, India",
-        "dates": "Jan 2025 – Apr 2025",
-        "bullets": [
-            "Built and maintained production REST APIs in Python/Node.js with MySQL — shipped 10+ features end-to-end in Agile sprints; 85%+ test coverage via GitHub Actions CI/CD with zero regression incidents.",
-            "Identified and resolved N+1 database query bottleneck causing production timeouts — added structured logging, rewrote with JOIN and Redis caching; response time dropped from 800ms to <250ms.",
-        ]
-    },
-    {
-        "title": "Data Analyst Intern",
-        "company": "Technokrit Solutions, India",
-        "dates": "May 2024 – Aug 2024",
-        "bullets": [
-            "Built Power BI dashboards and automated ETL pipelines surfacing KPIs across 3+ business teams — wrote SQL queries to retrieve and transform data from relational databases for business stakeholders.",
-            "Applied statistical analysis to identify process optimization opportunities — cleaned and transformed raw datasets, documented data definitions and reporting processes to support consistency across teams.",
-        ]
-    },
-    {
-        "title": "Computer Science Grader",
-        "company": "University of Texas at Dallas",
-        "dates": "Sep 2025 – May 2026",
-        "bullets": [
-            "Evaluated 300+ student submissions/semester in Data Structures and Algorithms — collaborated with faculty on grading rubrics; maintained detailed feedback logs and academic integrity records.",
-            "Co-authored empirical AI security research benchmarking 13 frontier LLMs across 569 real-world GitHub commits using CodeQL static analysis; 426 CPU hours distributed compute; publication-track paper.",
-        ]
-    },
-    {
-        "title": "CS Outreach Instructor",
-        "company": "University of Texas at Dallas",
-        "dates": "Jun 2026 – Present",
-        "bullets": [
-            "Build and deploy interactive web tools for real student users — take end-to-end ownership of features, iterate based on feedback, deploy via CI/CD pipeline.",
-            "Design curriculum and hands-on coding exercises for 20+ students per session — translate complex technical concepts into accessible formats; maintain high engagement across multi-week programs.",
-        ]
-    },
-]
-
-DEFAULT_RESEARCH = [
-    {
-        "title": "Empirical AI Security Researcher",
-        "institution": "University of Texas at Dallas",
-        "dates": "Jan 2026 – May 2026",
-        "bullets": [
-            "Co-authored empirical research benchmarking 13 frontier LLMs across 569 real-world GitHub commits using CodeQL static analysis — designed evaluation framework measuring AI-generated patch quality; 426 CPU hours distributed compute.",
-            "Applied statistical methods to analyze LLM performance across security metrics — paper on publication track with PhD reviewer feedback.",
-        ]
-    },
-]
-
-
 import shutil as _shutil
 
 LIBREOFFICE = (
@@ -75,6 +5,19 @@ LIBREOFFICE = (
     or _shutil.which("libreoffice")
     or "/Applications/LibreOffice.app/Contents/MacOS/soffice"
 )
+
+
+def contact_line(profile):
+    """Only the contact fields this user has actually filled in."""
+    parts = (profile.get(k) for k in ("phone", "email", "linkedin", "github", "portfolio"))
+    return "  |  ".join(p for p in parts if p)
+
+
+def education_lines(education):
+    """(degree, school line, relevant courses) per education row."""
+    for e in education:
+        yield e["degree"], e["school"] + (f"  |  {e['track']}" if e.get("track") else ""), e.get("relevant_courses")
+
 
 def generate_resume_autofit(profile, skills, experience, projects, education, output_path, company_name="", role_name="", research=None):
     """Auto-fits resume to exactly one page using binary search on spacing multiplier."""
@@ -229,24 +172,21 @@ def _generate_with_multiplier(profile, skills, experience, projects, education, 
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     sp(p, before=0, after=68)
-    contact = f"{profile['phone']}  |  {profile['email']}  |  {profile['linkedin']}  |  {profile['github']}"
-    if profile.get('portfolio'):
-        contact += f"  |  {profile['portfolio']}"
+    contact = contact_line(profile)
     sf(p.add_run(contact), size=8)
 
     # Education
-    sec_hdr("Education")
-    p = doc.add_paragraph()
-    sp(p, before=52, after=16)
-    sf(p.add_run(education["ms_degree"]), size=9.5, bold=True)
-    sf(p.add_run(f"  —  {education['ms_school']}"), size=9.5)
-    p = doc.add_paragraph()
-    sp(p, before=0, after=16)
-    sf(p.add_run(f"Relevant: {education['ms_relevant']}"), size=8, color="555555")
-    p = doc.add_paragraph()
-    sp(p, before=30, after=52)
-    sf(p.add_run(education["bs_degree"]), size=9.5, bold=True)
-    sf(p.add_run(f"  —  {education['bs_school']}"), size=9.5)
+    if education:
+        sec_hdr("Education")
+    for degree, school, relevant in education_lines(education):
+        p = doc.add_paragraph()
+        sp(p, before=52, after=16)
+        sf(p.add_run(degree), size=9.5, bold=True)
+        sf(p.add_run(f"  —  {school}"), size=9.5)
+        if relevant:
+            p = doc.add_paragraph()
+            sp(p, before=0, after=16)
+            sf(p.add_run(f"Relevant: {relevant}"), size=8, color="555555")
 
     # Skills
     sec_hdr("Technical Skills")
@@ -290,7 +230,8 @@ def _generate_with_multiplier(profile, skills, experience, projects, education, 
         sf(vp.add_run(value), size=8.5)
 
     # Experience
-    sec_hdr("Professional Experience")
+    if experience:
+        sec_hdr("Professional Experience")
     for job in experience:
         job_hdr(job["title"], job["company"], job["dates"])
         for b in job["bullets"]:
@@ -316,13 +257,6 @@ def _generate_with_multiplier(profile, skills, experience, projects, education, 
         stk(s)
         for b in project["highlights"]:
             blt(b)
-
-    # Accomplishments
-    sec_hdr("Accomplishments")
-    p = doc.add_paragraph()
-    sp(p, before=52, after=12)
-    sf(p.add_run("CometX Accelerator 2026"), size=9.5, bold=True)
-    sf(p.add_run("  —  UT Dallas x Harvard Business School Foundry  |  Top 20 / 181 Teams, Draper Pitch Competition"), size=8.5, color="555555")
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     doc.save(output_path)

@@ -127,6 +127,19 @@ def test_analyze_jd_creates_job_and_status_can_be_updated(client):
     assert updated["status"] == "applied"
     assert updated["applied_at"] is not None
 
+    # Moving back to Found un-submits the application; applied_at must clear
+    # or the dashboard's "Applications Submitted" count stays inflated.
+    assert client.patch(f"/api/jobs/{job['id']}/status?status=found").status_code == 200
+    reverted = next(j for j in client.get("/api/jobs/").json()["jobs"] if j["id"] == job["id"])
+    assert reverted["applied_at"] is None
+
+    # Later stages keep the original applied date rather than resetting it.
+    client.patch(f"/api/jobs/{job['id']}/status?status=applied")
+    first_applied = next(j for j in client.get("/api/jobs/").json()["jobs"] if j["id"] == job["id"])["applied_at"]
+    client.patch(f"/api/jobs/{job['id']}/status?status=interviewing")
+    later = next(j for j in client.get("/api/jobs/").json()["jobs"] if j["id"] == job["id"])
+    assert later["applied_at"] == first_applied
+
 
 def test_analyze_jd_requires_text_field(client):
     res = client.post("/api/resumes/analyze", json={"company": "NoText Co"})

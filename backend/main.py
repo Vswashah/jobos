@@ -21,13 +21,11 @@ from utils.project_scorer import select_projects
 from utils.experience_selector import select_experience
 from services.resume_generator import (
     generate_resume_autofit,
-    DEFAULT_PROFILE,
-    DEFAULT_EDUCATION,
-    DEFAULT_RESEARCH,
 )
 from db.database import get_db, init_db
 from services.db_service import (
     get_user_skills, get_user_projects, get_user_experience,
+    get_user_skills_by_category, get_user_education,
     get_user_profile, save_job, save_resume, log_activity
 )
 from services.auth_service import get_current_user_id
@@ -64,16 +62,6 @@ app.add_middleware(
     # backend are separately-hosted origins).
     expose_headers=["Content-Disposition"],
 )
-
-SKILLS_TEMPLATE = {
-    "Languages": "Python, JavaScript, TypeScript, Go, C++, SQL, Bash",
-    "Backend": "FastAPI, Flask, Node.js, NestJS, REST APIs, PostgreSQL, MySQL, Redis",
-    "AI & ML": "LangChain, LangGraph, LiteLLM, RAG, pgvector, Scikit-learn, PyTorch",
-    "Cloud": "AWS (Lambda, S3, EKS), Docker, Kubernetes, Terraform, GitHub Actions CI/CD",
-    "Data": "Apache Kafka, pandas, NumPy, Prometheus, Grafana, ETL pipelines",
-    "Frontend": "React.js, TypeScript, Next.js, HTML5, CSS3",
-}
-
 
 class JDRequest(BaseModel):
     # Length caps keep a single request from carrying an enormous payload.
@@ -156,6 +144,10 @@ async def generate_pdf_endpoint(request: JDRequest, user_id: str = Depends(get_c
     user_projects = await get_user_projects(db, user_id)
     user_experience = await get_user_experience(db, user_id)
     user_profile = await get_user_profile(db, user_id)
+    resume_skills = await get_user_skills_by_category(db, user_id)
+    resume_education = await get_user_education(db, user_id)
+    if not resume_skills or not user_profile.get("name"):
+        raise HTTPException(status_code=400, detail="Add your skills in My Profile before generating a resume")
 
     # Step 1 — Extract and match
     extracted = extract_skills(request.jd_text)
@@ -185,19 +177,13 @@ async def generate_pdf_endpoint(request: JDRequest, user_id: str = Depends(get_c
     docx_path = f"{RESUME_DIR}/{file_id}.docx"
     pdf_path = f"{RESUME_DIR}/{file_id}.pdf"
 
-    include_research = any(
-        s in extracted["all_skills"]
-        for s in ["pytorch", "scikit-learn", "langchain", "llm", "machine learning"]
-    ) or "research" in (request.team_focus or "").lower()
-
     try:
         generate_resume_autofit(
-            profile=user_profile or DEFAULT_PROFILE,
-            skills=SKILLS_TEMPLATE,
+            profile=user_profile,
+            skills=resume_skills,
             experience=selected_experience,
             projects=selected_projects,
-            education=DEFAULT_EDUCATION,
-            research=DEFAULT_RESEARCH if include_research else None,
+            education=resume_education,
             output_path=docx_path,
             company_name=request.company,
             role_name=request.role,

@@ -17,6 +17,33 @@ async def get_user_skills(db: AsyncSession, user_id: str) -> list:
     return [row[0] for row in result.fetchall()]
 
 
+_SKILL_LABELS = {"language": "Languages", "framework": "Frameworks", "database": "Databases",
+                 "cloud": "Cloud & DevOps", "tool": "Tools", "ai_ml": "AI & ML", "other": "Other"}
+
+
+async def get_user_skills_by_category(db: AsyncSession, user_id: str) -> dict:
+    """{category label: "a, b, c"} for the resume's Technical Skills table."""
+    result = await db.execute(text("""
+        SELECT COALESCE(NULLIF(category, ''), 'other'), name FROM skills
+        WHERE user_id = :user_id AND is_deleted = FALSE
+        ORDER BY category, name
+    """), {"user_id": user_id})
+    grouped: dict = {}
+    for category, name in result.fetchall():
+        label = _SKILL_LABELS.get(category, category.replace("_", " ").title())
+        grouped.setdefault(label, []).append(name)
+    return {c: ", ".join(names) for c, names in grouped.items()}
+
+
+async def get_user_education(db: AsyncSession, user_id: str) -> list:
+    result = await db.execute(text("""
+        SELECT degree, school, track, relevant_courses FROM education
+        WHERE user_id = :user_id
+        ORDER BY display_order
+    """), {"user_id": user_id})
+    return [{"degree": r[0], "school": r[1], "track": r[2], "relevant_courses": r[3]} for r in result.fetchall()]
+
+
 async def get_user_projects(db: AsyncSession, user_id: str) -> list:
     """Fetch all projects as list of dicts matching YOUR_PROJECTS format"""
     result = await db.execute(text("""

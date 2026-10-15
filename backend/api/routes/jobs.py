@@ -100,7 +100,11 @@ async def update_job_status(job_id: str, status: str, user_id: str = Depends(get
 
     result = await db.execute(text("""
         UPDATE jobs SET status = :status,
-        applied_at = CASE WHEN CAST(:status AS VARCHAR) = 'applied' THEN NOW() ELSE applied_at END
+        applied_at = CASE CAST(:status AS VARCHAR)
+            WHEN 'applied' THEN COALESCE(applied_at, NOW())
+            WHEN 'found' THEN NULL
+            ELSE applied_at
+        END
         WHERE id = :job_id AND user_id = :user_id
     """), {"status": status, "job_id": job_id, "user_id": user_id})
     await db.commit()

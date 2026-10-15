@@ -14,11 +14,11 @@ interface Job {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  found: 'bg-cream-200 text-ink-900/60',
-  applied: 'bg-gold-300/40 text-ink-900',
-  interviewing: 'bg-violet-100 text-violet-700',
-  offered: 'bg-emerald-100 text-emerald-700',
-  rejected: 'bg-red-100 text-red-700',
+  found: 'bg-line text-ink-900/60',
+  applied: 'bg-accent-soft text-ink-900',
+  interviewing: 'bg-stone text-ink-900',
+  offered: 'bg-ok/10 text-ok',
+  rejected: 'bg-bad/10 text-bad',
 }
 
 const STATUS_OPTIONS = ['found', 'applied', 'interviewing', 'offered', 'rejected']
@@ -57,48 +57,48 @@ export default function Resumes() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="mb-6">
-        <h2 className="text-3xl font-extrabold text-ink-900 tracking-tight">Application Tracker</h2>
-        <p className="text-ink-900/50 mt-1">Every JD you've analyzed — track your pipeline</p>
+        <h2 className="text-2xl font-bold tracking-tight">Application Tracker</h2>
+        <p className="text-muted mt-1">Every JD you've analyzed — track your pipeline</p>
       </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-5 gap-3 mb-6">
         {STATUS_OPTIONS.map(status => (
-          <div key={status} className="bg-white rounded-2xl border border-ink-900/5 p-4 text-center shadow-sm">
-            <div className="text-2xl font-extrabold text-ink-900">
+          <div key={status} className="bg-white rounded-xl border border-line p-4 text-center shadow-sm">
+            <div className="text-2xl font-bold text-ink-900">
               {jobs.filter(j => j.status === status).length}
             </div>
-            <div className="text-xs text-ink-900/50 mt-1 capitalize">{status}</div>
+            <div className="text-xs text-muted mt-1 capitalize">{status}</div>
           </div>
         ))}
       </div>
 
       {/* Jobs table */}
-      <div className="bg-white rounded-2xl border border-ink-900/5 overflow-hidden shadow-sm">
+      <div className="bg-white rounded-xl border border-line overflow-hidden shadow-sm">
         {loading ? (
-          <div className="p-12 text-center text-ink-900/30">Loading...</div>
+          <div className="p-12 text-center text-muted">Loading...</div>
         ) : jobs.length === 0 ? (
           <div className="p-12 text-center">
             <div className="text-4xl mb-3">📋</div>
             <h3 className="text-lg font-bold text-ink-900 mb-1">No jobs yet</h3>
-            <p className="text-ink-900/50 text-sm">Analyze a JD to start tracking</p>
+            <p className="text-muted text-sm">Analyze a JD to start tracking</p>
           </div>
         ) : (
           <table className="w-full">
-            <thead className="bg-cream-100/60 border-b border-ink-900/5">
+            <thead className="bg-stone border-b border-line">
               <tr>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-900/40 uppercase">Company</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-900/40 uppercase">Role</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-900/40 uppercase">Skills</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-900/40 uppercase">Date</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-900/40 uppercase">Status</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-muted uppercase">Company</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-muted uppercase">Role</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-muted uppercase">Skills</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-muted uppercase">Date</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-muted uppercase">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-900/5">
               {jobs.map(job => (
-                <tr key={job.id} className="hover:bg-cream-100/40 transition-colors">
+                <tr key={job.id} className="hover:bg-stone transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-semibold text-ink-900">{job.company}</div>
                   </td>
@@ -108,14 +108,14 @@ export default function Resumes() {
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
                       {(job.required_skills || []).slice(0, 4).map(s => (
-                        <span key={s} className="px-2 py-0.5 bg-gold-300/30 text-ink-900/80 rounded-full text-xs">{s}</span>
+                        <span key={s} className="px-2 py-0.5 bg-accent-soft text-ink-900/80 rounded-full text-xs">{s}</span>
                       ))}
                       {job.required_skills?.length > 4 && (
-                        <span className="text-xs text-ink-900/40">+{job.required_skills.length - 4}</span>
+                        <span className="text-xs text-muted">+{job.required_skills.length - 4}</span>
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-ink-900/50">
+                  <td className="px-6 py-4 text-sm text-muted">
                     {formatDate(job.found_at)}
                   </td>
                   <td className="px-6 py-4">

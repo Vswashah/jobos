@@ -1,225 +1,234 @@
-import { useState, useEffect } from 'react'
-import { apiFetch } from '../api'
+import { Search, FileText, Send, Mic, Zap, Compass, Flame, CalendarClock, ArrowRight } from 'lucide-react'
+import { useFetch } from '../api'
+import Mascot from '../components/Mascot'
 import ActivityTrendChart from '../components/ActivityTrendChart'
-import TopSkillsChart from '../components/TopSkillsChart'
+import { Button, Card, CardHeader, EmptyState, ErrorState, Skeleton } from '../components/ui'
+import type { Job, JobStatus, Navigate } from '../types'
 
-interface Stats {
-  total_analyzed: number
-  applied: number
-  interviewing: number
-  offered: number
-  rejected: number
-  resumes_generated: number
+interface Activity { action: string; entity_type: string; metadata: any; created_at: string }
+interface Streak { current_streak: number; longest_streak: number; active_today: boolean; grid: { date: string; count: number }[] }
+interface Interview { id: string; company: string; role: string; round: number; interview_date: string | null }
+
+const FOLLOW_UP_AFTER_DAYS = 7
+const DAY_MS = 86_400_000
+
+const dot = (n: number) => (n === 0 ? 'bg-stone' : n <= 2 ? 'bg-accent/40' : n <= 5 ? 'bg-accent/70' : 'bg-accent')
+const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+const fmtDateTime = (d: string) => new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+
+const describe = (a: Activity) => {
+  const who = a.metadata?.company
+  if (a.action === 'job_analyzed') return `Analyzed ${who || 'a job'}${a.metadata?.role ? ` — ${a.metadata.role}` : ''}`
+  if (a.action === 'resume_generated') return `Generated resume for ${who || 'a company'}`
+  return a.action.replace(/_/g, ' ')
 }
 
-interface Activity {
-  action: string
-  entity_type: string
-  metadata: any
-  created_at: string
-}
+export default function Dashboard({ userName, navigate }: { userName: string; navigate: Navigate }) {
+  const jobsQ = useFetch<{ jobs: Job[] }>('/api/jobs/')
+  const analytics = useFetch<{ stats: { resumes_generated: number }; recent_activity: Activity[] }>('/api/jobs/analytics')
+  const streakQ = useFetch<Streak>('/api/jobs/streak')
+  const skillsQ = useFetch<{ skills: { skill: string; count: number }[] }>('/api/jobs/top-skills')
+  const mySkillsQ = useFetch<{ skills: { name: string }[] }>('/api/profile/skills')
+  const interviewsQ = useFetch<{ interviews: Interview[] }>('/api/interviews/')
 
-interface Streak {
-  current_streak: number
-  longest_streak: number
-  active_today: boolean
-  grid: Array<{ date: string; count: number }>
-}
+  const jobs = jobsQ.data?.jobs
+  const count = (s: JobStatus) => jobs?.filter(j => j.status === s).length ?? 0
+  const submitted = jobs?.filter(j => j.applied_at).length ?? 0
+  const advanced = jobs?.filter(j => j.applied_at && (j.status === 'interviewing' || j.status === 'offered')).length ?? 0
+  const quietWeek = !jobs?.some(j => j.applied_at && Date.now() - new Date(j.applied_at).getTime() < 7 * DAY_MS)
+  const conversion = submitted ? Math.round((advanced / submitted) * 100) : null
 
-interface SkillCount {
-  skill: string
-  count: number
-}
-
-interface Props {
-  userName: string
-}
-
-export default function Dashboard({ userName }: Props) {
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [activity, setActivity] = useState<Activity[]>([])
-  const [streak, setStreak] = useState<Streak | null>(null)
-  const [topSkills, setTopSkills] = useState<SkillCount[]>([])
-
-  useEffect(() => {
-    apiFetch('/api/jobs/analytics')
-      .then(r => r.json())
-      .then(data => {
-        setStats(data.stats)
-        setActivity(data.recent_activity || [])
-      })
-      .catch(() => {})
-
-    apiFetch('/api/jobs/streak')
-      .then(r => r.json())
-      .then(setStreak)
-      .catch(() => {})
-
-    apiFetch('/api/jobs/top-skills')
-      .then(r => r.json())
-      .then(data => setTopSkills(data.skills || []))
-      .catch(() => {})
-  }, [])
-
-  const formatAction = (action: string, metadata: any) => {
-    if (action === 'job_analyzed') return `Analyzed ${metadata?.company || 'a job'} — ${metadata?.role || ''}`
-    if (action === 'resume_generated') return `Generated resume for ${metadata?.company || 'a company'}`
-    return action
-  }
-
-  const formatTime = (dateStr: string) => {
-    const d = new Date(dateStr)
-    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-  }
-
-  const statCards = [
-    { label: 'JDs Analyzed', value: stats?.total_analyzed ?? '—', icon: '🔍' },
-    { label: 'Resumes Generated', value: stats?.resumes_generated ?? '—', icon: '📄' },
-    { label: 'Applied', value: stats?.applied ?? '—', icon: '📨' },
-    { label: 'Interviewing', value: stats?.interviewing ?? '—', icon: '🎯' },
+  const kpis = [
+    { label: 'JDs Analyzed', value: jobs?.length, icon: Search },
+    { label: 'Resumes Generated', value: analytics.data?.stats.resumes_generated, icon: FileText },
+    { label: 'Applications Submitted', value: jobs ? submitted : undefined, icon: Send },
+    { label: 'Interviews', value: interviewsQ.data?.interviews.length, icon: Mic },
   ]
 
-  const dotClass = (count: number) => {
-    if (count === 0) return 'bg-white/10'
-    if (count <= 2) return 'bg-gold-400/40'
-    if (count <= 5) return 'bg-gold-400/70'
-    return 'bg-gold-400'
-  }
+  // Next actions — only what the data can honestly say: scheduled interviews,
+  // and applications that have sat in "applied" past the follow-up window.
+  const now = Date.now()
+  const actions = [
+    ...(interviewsQ.data?.interviews ?? [])
+      .filter(i => i.interview_date && new Date(i.interview_date).getTime() >= now)
+      .map(i => ({
+        key: `i${i.id}`, when: new Date(i.interview_date!).getTime(), icon: Mic,
+        title: `${i.company} — round ${i.round}`, detail: fmtDateTime(i.interview_date!),
+        cta: 'Prepare', go: () => navigate('interviews'),
+      })),
+    ...(jobs ?? [])
+      .filter(j => j.status === 'applied' && j.applied_at && now - new Date(j.applied_at).getTime() > FOLLOW_UP_AFTER_DAYS * DAY_MS)
+      .map(j => ({
+        key: `j${j.id}`, when: new Date(j.applied_at!).getTime() + FOLLOW_UP_AFTER_DAYS * DAY_MS, icon: CalendarClock,
+        title: `${j.company} — ${j.role}`, detail: `Applied ${fmtDate(j.applied_at!)}, no update yet`,
+        cta: 'Review', go: () => navigate('applications', 'applied'),
+      })),
+  ].sort((a, b) => a.when - b.when).slice(0, 5)
+  const actionsLoading = jobsQ.loading || interviewsQ.loading
 
-  // grid is chronological (oldest→newest, 84 days); chunk into 12 weeks of 7
-  // days each so it renders as a GitHub-style column-per-week heatmap
-  const weeks: Array<Array<{ date: string; count: number }>> = []
-  if (streak) {
-    for (let i = 0; i < streak.grid.length; i += 7) {
-      weeks.push(streak.grid.slice(i, i + 7))
-    }
-  }
+  const mine = new Set(mySkillsQ.data?.skills.map(s => s.name.toLowerCase()))
+  const topSkills = skillsQ.data?.skills ?? []
+  const maxSkill = Math.max(...topSkills.map(s => s.count), 1)
+  const streak = streakQ.data
+  const weeks = streak ? Array.from({ length: Math.ceil(streak.grid.length / 7) }, (_, i) => streak.grid.slice(i * 7, i * 7 + 7)) : []
+  const trend = streak?.grid.slice(-30) ?? []
+
+  const pipeline: { label: string; status: JobStatus }[] = [
+    { label: 'Applied', status: 'applied' }, { label: 'Interviewing', status: 'interviewing' },
+    { label: 'Offered', status: 'offered' }, { label: 'Rejected', status: 'rejected' },
+  ]
+  const pipeTotal = pipeline.reduce((n, p) => n + count(p.status), 0)
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h2 className="text-3xl font-extrabold text-ink-900 tracking-tight">Welcome back, {userName.split(' ')[0]} 👋</h2>
-        <p className="text-ink-900/50 mt-1">Your AI-powered job search dashboard</p>
+    <div className="p-4 md:p-8 max-w-[1400px] mx-auto space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-2">
+        <div className="flex items-center gap-4">
+          <Mascot size={72} mood="wave" />
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Welcome back, {userName.split(' ')[0]}</h2>
+            <p className="text-muted mt-1">Here's where your job search stands.</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="primary" onClick={() => navigate('analyze')}><Zap className="size-4" />Analyze a JD</Button>
+          <Button onClick={() => navigate('discover')}><Compass className="size-4" />Discover jobs</Button>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        {statCards.map(stat => (
-          <div key={stat.label} className="bg-white rounded-2xl border border-ink-900/5 p-5 shadow-sm">
-            <div className="w-10 h-10 rounded-full bg-gold-300/40 flex items-center justify-center text-lg mb-3">{stat.icon}</div>
-            <div className="text-2xl font-extrabold text-ink-900">{stat.value}</div>
-            <div className="text-sm text-ink-900/50 mt-1">{stat.label}</div>
-          </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {kpis.map(({ label, value, icon: Icon }) => (
+          <Card key={label} className="!p-4 md:!p-5">
+            <Icon className="size-5 text-accent mb-3" aria-hidden />
+            {value === undefined ? <Skeleton className="h-8 w-12" /> : <div className="text-3xl font-bold">{value}</div>}
+            <div className="text-sm text-muted mt-1">{label}</div>
+          </Card>
         ))}
       </div>
 
-      {/* Activity Streak + Trend */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="bg-ink-900 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-start justify-between mb-5">
-            <div>
-              <h3 className="text-lg font-bold text-cream-50">Activity Streak</h3>
-              <p className="text-xs text-cream-50/40 mt-0.5">Days in a row you've worked your job search</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6 mb-5">
-            <div>
-              <div className="text-3xl font-extrabold text-gold-400">
-                {streak ? streak.current_streak : '—'}
-                <span className="text-lg align-top ml-0.5">🔥</span>
-              </div>
-              <div className="text-xs text-cream-50/40">current</div>
-            </div>
-            <div>
-              <div className="text-3xl font-extrabold text-cream-50">{streak ? streak.longest_streak : '—'}</div>
-              <div className="text-xs text-cream-50/40">longest</div>
-            </div>
-          </div>
-
-          {streak ? (
-            <div className="flex gap-1 overflow-x-auto pb-1">
-              {weeks.map((week, wi) => (
-                <div key={wi} className="flex flex-col gap-1">
-                  {week.map(day => (
-                    <div
-                      key={day.date}
-                      title={`${day.date}: ${day.count} action${day.count === 1 ? '' : 's'}`}
-                      className={`w-3 h-3 rounded-[3px] ${dotClass(day.count)}`}
-                    />
-                  ))}
-                </div>
+      <div className="grid lg:grid-cols-5 gap-4">
+        <Card className="lg:col-span-3">
+          <CardHeader title="Next actions" subtitle="Upcoming interviews and applications waiting on a reply" />
+          {actionsLoading ? <Skeleton className="h-32" /> : interviewsQ.error && jobsQ.error ? (
+            <ErrorState what="actions" onRetry={() => { jobsQ.reload(); interviewsQ.reload() }} />
+          ) : actions.length === 0 ? (
+            <EmptyState mood="sleep" title="Nothing pending" hint="Scheduled interviews and stale applications will show up here." />
+          ) : (
+            <ul className="divide-y divide-line">
+              {actions.map(a => (
+                <li key={a.key} className="flex items-center gap-3 py-3">
+                  <a.icon className="size-5 text-accent shrink-0" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate">{a.title}</p>
+                    <p className="text-xs text-muted">{a.detail}</p>
+                  </div>
+                  <Button variant="ghost" onClick={a.go}>{a.cta}<ArrowRight className="size-4" /></Button>
+                </li>
               ))}
-            </div>
-          ) : (
-            <div className="h-[92px]" />
+            </ul>
           )}
-        </div>
+        </Card>
 
-        <div className="bg-ink-900 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-cream-50">Activity Trend</h3>
-          <p className="text-xs text-cream-50/40 mt-0.5 mb-5">Actions per day, last 30 days</p>
-          {streak ? (
-            <ActivityTrendChart data={streak.grid.slice(-30)} />
-          ) : (
-            <div className="h-[110px]" />
+        <Card className="lg:col-span-2">
+          <CardHeader title="Pipeline" subtitle={conversion === null ? 'Applied → interview conversion appears after your first application' : `${conversion}% of applications reached an interview`} />
+          {jobsQ.loading ? <Skeleton className="h-32" /> : jobsQ.error ? <ErrorState what="pipeline" onRetry={jobsQ.reload} /> : (
+            <ul className="space-y-1">
+              {pipeline.map(p => (
+                <li key={p.status}>
+                  <button onClick={() => navigate('applications', p.status)} className="w-full text-left rounded-xl p-2 hover:bg-stone">
+                    <div className="flex justify-between text-sm"><span className="font-semibold">{p.label}</span><span>{count(p.status)}</span></div>
+                    <div className="h-2 mt-1.5 rounded-full bg-stone" aria-hidden>
+                      <div className="h-2 rounded-full bg-accent" style={{ width: pipeTotal ? `${(count(p.status) / pipeTotal) * 100}%` : 0 }} />
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
-        </div>
+          {jobs && submitted > 0 && quietWeek && (
+            <p className="flex items-center gap-2 mt-3 pt-3 border-t border-line text-sm text-muted">
+              <Mascot size={44} mood="sleep" />No applications sent this week.
+            </p>
+          )}
+        </Card>
       </div>
 
-      {/* Pipeline */}
-      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 mb-4 shadow-sm">
-        <h3 className="text-lg font-bold text-ink-900 mb-4">Pipeline</h3>
-        <div className="grid grid-cols-4 gap-3">
-          {[
-            { label: 'Applied', value: stats?.applied ?? 0, dark: true },
-            { label: 'Interviewing', value: stats?.interviewing ?? 0, dark: false },
-            { label: 'Offered', value: stats?.offered ?? 0, dark: true },
-            { label: 'Rejected', value: stats?.rejected ?? 0, dark: false },
-          ].map(item => (
-            <div key={item.label} className="text-center">
-              <div className={`rounded-2xl p-4 ${item.dark ? 'bg-ink-900 text-cream-50' : 'bg-gold-400 text-ink-900'}`}>
-                <div className="text-3xl font-extrabold">{item.value}</div>
+      <div className="grid md:grid-cols-2 gap-4">
+        <section className="bg-white border border-line rounded-xl p-5 md:p-6">
+          <h3 className="text-base font-semibold">Activity streak</h3>
+          <p className="text-xs text-muted mt-0.5 mb-4">Last 12 weeks — each square is a day with logged activity</p>
+          {streakQ.loading ? <Skeleton className="h-28 bg-stone" /> : streakQ.error || !streak ? <ErrorState what="streak" onRetry={streakQ.reload} /> : (
+            <>
+              <div className="flex items-center gap-6 mb-4">
+                {streak.current_streak >= 3 && (
+                  <div className="flex items-center gap-2">
+                    <Mascot size={64} mood="fire" />
+                    <p className="text-sm font-semibold max-w-24 leading-tight">{streak.current_streak} days in a row!</p>
+                  </div>
+                )}
+                <div><div className="text-3xl font-bold text-accent flex items-center gap-1">{streak.current_streak}<Flame className="size-5" aria-hidden /></div><div className="text-xs text-muted">current</div></div>
+                <div><div className="text-3xl font-bold">{streak.longest_streak}</div><div className="text-xs text-muted">longest</div></div>
               </div>
-              <div className="text-sm text-ink-900/50 mt-2">{item.label}</div>
-            </div>
-          ))}
-        </div>
+              <div className="flex gap-1 overflow-x-auto pb-1" role="img" aria-label={`Activity grid: current streak ${streak.current_streak} days, longest ${streak.longest_streak}`}>
+                {weeks.map((w, i) => (
+                  <div key={i} className="flex flex-col gap-1">
+                    {w.map(d => <div key={d.date} title={`${d.date}: ${d.count} action${d.count === 1 ? '' : 's'}`} className={`size-3 rounded-[3px] ${dot(d.count)}`} />)}
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5 mt-3 text-[11px] text-muted">
+                Less {[0, 1, 3, 6].map(n => <span key={n} className={`size-3 rounded-[3px] ${dot(n)}`} />)} More
+              </div>
+            </>
+          )}
+        </section>
+
+        <section className="bg-white border border-line rounded-xl p-5 md:p-6">
+          <h3 className="text-base font-semibold">30-day trend</h3>
+          <p className="text-xs text-muted mt-0.5 mb-4">Logged actions per day</p>
+          {streakQ.loading ? <Skeleton className="h-28 bg-stone" /> : streakQ.error ? <ErrorState what="trend" onRetry={streakQ.reload} /> :
+            trend.every(d => d.count === 0) ? <p className="text-sm text-muted py-8 text-center">No activity in the last 30 days.</p> : <ActivityTrendChart data={trend} />}
+        </section>
       </div>
 
-      {/* Top Skills */}
-      {topSkills.length > 0 && (
-        <div className="bg-white rounded-2xl border border-ink-900/5 p-6 mb-4 shadow-sm">
-          <h3 className="text-lg font-bold text-ink-900 mb-4">Top Skills in JDs</h3>
-          <TopSkillsChart data={topSkills} />
-        </div>
-      )}
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader title="Skills in your analyzed JDs" subtitle="Filled = on your profile · outlined = not on your profile"
+            action={<Button variant="ghost" onClick={() => navigate('profile')}>Update skills</Button>} />
+          {skillsQ.loading ? <Skeleton className="h-40" /> : skillsQ.error ? <ErrorState what="skills" onRetry={skillsQ.reload} /> :
+            topSkills.length === 0 ? <EmptyState title="No skills yet" hint="Analyze a job description to see which skills employers ask for." /> : (
+              <ul className="space-y-2.5">
+                {topSkills.map(s => {
+                  const has = mine.has(s.skill.toLowerCase())
+                  return (
+                    <li key={s.skill} className="flex items-center gap-3 text-sm">
+                      <span className="w-28 truncate capitalize">{s.skill}</span>
+                      <div className="flex-1 h-3 rounded-full bg-stone" aria-hidden>
+                        <div className={`h-3 rounded-full ${has ? 'bg-accent' : 'bg-white border-2 border-accent'}`} style={{ width: `${(s.count / maxSkill) * 100}%` }} />
+                      </div>
+                      <span className="w-6 text-right font-bold">{s.count}</span>
+                      <span className="sr-only">{has ? 'on your profile' : 'missing from your profile'}</span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+        </Card>
 
-      {/* Recent Activity */}
-      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 shadow-sm">
-        <h3 className="text-lg font-bold text-ink-900 mb-4">Recent Activity</h3>
-        {activity.length === 0 ? (
-          <div className="text-center py-8 text-ink-900/30">
-            <div className="text-4xl mb-2">🚀</div>
-            <p className="text-sm">No activity yet — analyze your first JD to get started</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {activity.map((item, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-cream-100/60">
-                <div className="w-9 h-9 rounded-full bg-gold-300/40 flex items-center justify-center text-sm shrink-0">
-                  {item.action === 'job_analyzed' ? '🔍' : '📄'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-ink-900 truncate">
-                    {formatAction(item.action, item.metadata)}
-                  </p>
-                  <p className="text-xs text-ink-900/40">{formatTime(item.created_at)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <Card>
+          <CardHeader title="Recent activity" />
+          {analytics.loading ? <Skeleton className="h-40" /> : analytics.error ? <ErrorState what="activity" onRetry={analytics.reload} /> :
+            !analytics.data?.recent_activity.length ? <EmptyState title="No activity yet" hint="Analyze your first JD to get started." action={<Button variant="primary" onClick={() => navigate('analyze')}>Analyze a JD</Button>} /> : (
+              <ul className="divide-y divide-line">
+                {analytics.data.recent_activity.map((a, i) => (
+                  <li key={i} className="flex items-center gap-3 py-2.5">
+                    {a.action === 'job_analyzed' ? <Search className="size-4 text-accent shrink-0" aria-hidden /> : <FileText className="size-4 text-accent shrink-0" aria-hidden />}
+                    <p className="text-sm flex-1 min-w-0 truncate">{describe(a)}</p>
+                    <time className="text-xs text-muted shrink-0" dateTime={a.created_at}>{fmtDateTime(a.created_at)}</time>
+                  </li>
+                ))}
+              </ul>
+            )}
+        </Card>
       </div>
     </div>
   )

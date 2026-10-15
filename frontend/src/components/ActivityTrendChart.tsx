@@ -47,16 +47,16 @@ export default function ActivityTrendChart({ data }: Props) {
     <div className="relative">
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-[110px] overflow-visible">
         {/* baseline */}
-        <line x1={0} y1={HEIGHT - PAD_BOTTOM} x2={WIDTH} y2={HEIGHT - PAD_BOTTOM} stroke="white" strokeOpacity={0.1} strokeWidth={1} />
+        <line x1={0} y1={HEIGHT - PAD_BOTTOM} x2={WIDTH} y2={HEIGHT - PAD_BOTTOM} stroke="#e2e0da" strokeWidth={1} />
 
         {/* area fill */}
-        <polygon points={areaPoints} fill="#f2c94c" fillOpacity={0.15} />
+        <polygon points={areaPoints} fill="#c96442" fillOpacity={0.15} />
 
         {/* line */}
         <polyline
           points={linePoints}
           fill="none"
-          stroke="#f2c94c"
+          stroke="#c96442"
           strokeWidth={2}
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -67,13 +67,13 @@ export default function ActivityTrendChart({ data }: Props) {
           <line
             x1={xAt(hoverIndex)} y1={PAD_TOP}
             x2={xAt(hoverIndex)} y2={HEIGHT - PAD_BOTTOM}
-            stroke="white" strokeOpacity={0.25} strokeWidth={1}
+            stroke="#6f6e69" strokeOpacity={0.4} strokeWidth={1}
           />
         )}
 
         {/* end/hover marker — 2px surface ring so it stays legible over the line */}
-        <circle cx={xAt(active)} cy={yAt(activePoint.count)} r={5} fill="#17160f" />
-        <circle cx={xAt(active)} cy={yAt(activePoint.count)} r={4} fill="#f2c94c" />
+        <circle cx={xAt(active)} cy={yAt(activePoint.count)} r={5} fill="#ffffff" />
+        <circle cx={xAt(active)} cy={yAt(activePoint.count)} r={4} fill="#c96442" />
 
         {/* hover hit area */}
         <rect
@@ -85,8 +85,8 @@ export default function ActivityTrendChart({ data }: Props) {
       </svg>
 
       <div className="absolute top-0 right-0 text-right pointer-events-none">
-        <div className="text-2xl font-extrabold text-cream-50">{activePoint.count}</div>
-        <div className="text-xs text-cream-50/40">{formatDate(activePoint.date)}</div>
+        <div className="text-2xl font-bold text-ink-900">{activePoint.count}</div>
+        <div className="text-xs text-muted">{formatDate(activePoint.date)}</div>
       </div>
     </div>
   )

@@ -37,8 +37,8 @@ interface ProjectEntry {
 const emptyEducation: EducationEntry = { degree: '', school: '', track: '', relevant_courses: '', start_date: '', end_date: '' }
 const emptyProject: ProjectEntry = { name: '', description: '', stack: '', github_url: '', live_url: '', is_live: false }
 
-const inputClass = 'w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400'
-const textareaClass = 'w-full px-4 py-3 border border-ink-900/10 bg-cream-100/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-gold-400 resize-none'
+const inputClass = 'w-full px-4 min-h-11 md:min-h-10 border border-line bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent'
+const textareaClass = 'w-full px-4 py-3 border border-line bg-stone rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none'
 const labelClass = 'block text-sm font-semibold text-ink-900/70 mb-1'
 
 export default function Onboarding({ userName, onComplete }: Props) {
@@ -206,24 +206,24 @@ export default function Onboarding({ userName, onComplete }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 font-sans" style={{ background: 'linear-gradient(135deg, #dcdfe6 0%, #eee6d3 45%, #f6dfa8 100%)' }}>
-      <div className="w-full max-w-2xl bg-white rounded-[28px] shadow-2xl p-8">
+    <div className="min-h-screen flex items-center justify-center p-4 font-sans" >
+      <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl p-8">
         <div className="flex items-center justify-between mb-1">
           <div>
-            <h1 className="text-2xl font-extrabold text-ink-900 tracking-tight">Welcome, {userName.split(' ')[0]}</h1>
-            <p className="text-ink-900/50 text-sm mt-1">Let's set up your profile so JobOS can tailor resumes for you.</p>
+            <h1 className="text-2xl font-bold text-ink-900 tracking-tight">Welcome, {userName.split(' ')[0]}</h1>
+            <p className="text-muted text-sm mt-1">Let's set up your profile so JobOS can tailor resumes for you.</p>
           </div>
-          <button onClick={skip} disabled={saving} className="text-xs font-semibold text-ink-900/40 hover:text-ink-900 shrink-0">
+          <button onClick={skip} disabled={saving} className="text-xs font-semibold text-muted hover:text-ink-900 shrink-0">
             Skip for now
           </button>
         </div>
 
         <div className="flex items-center gap-2 my-6">
           {STEPS.map((s, i) => (
-            <div key={s.id} className={`h-1.5 flex-1 rounded-full ${i <= stepIndex ? 'bg-gold-400' : 'bg-cream-200'}`} />
+            <div key={s.id} className={`h-1.5 flex-1 rounded-full ${i <= stepIndex ? 'bg-accent' : 'bg-line'}`} />
           ))}
         </div>
-        <p className="text-xs font-semibold text-ink-900/40 mb-4 uppercase tracking-wide">
+        <p className="text-xs font-semibold text-muted mb-4 uppercase tracking-wide">
           Step {stepIndex + 1} of {STEPS.length} — {step.label}
         </p>
 
@@ -278,13 +278,13 @@ export default function Onboarding({ userName, onComplete }: Props) {
           {step.id === 'education' && (
             <div className="space-y-4">
               {educationEntries.map((entry, i) => (
-                <div key={i} className="p-4 rounded-2xl border border-ink-900/5 bg-cream-100/40 space-y-3">
+                <div key={i} className="p-4 rounded-xl border border-line bg-stone space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-ink-900/40 uppercase tracking-wide">Entry {i + 1}</p>
+                    <p className="text-xs font-semibold text-muted uppercase tracking-wide">Entry {i + 1}</p>
                     {educationEntries.length > 1 && (
                       <button
                         onClick={() => setEducationEntries(es => es.filter((_, idx) => idx !== i))}
-                        className="text-xs font-semibold text-ink-900/40 hover:text-red-600"
+                        className="text-xs font-semibold text-muted hover:text-bad"
                       >
                         Remove
                       </button>
@@ -304,7 +304,7 @@ export default function Onboarding({ userName, onComplete }: Props) {
               ))}
               <button
                 onClick={() => setEducationEntries(es => [...es, { ...emptyEducation }])}
-                className="text-sm font-semibold text-ink-900 bg-cream-200 hover:bg-cream-200/70 px-4 py-2 rounded-full"
+                className="text-sm font-semibold text-ink-900 bg-line hover:bg-stone px-4 py-2 rounded-lg"
               >
                 + Add another degree
               </button>
@@ -314,7 +314,7 @@ export default function Onboarding({ userName, onComplete }: Props) {
           {step.id === 'skills' && (
             <div>
               <label className={labelClass}>Your skills</label>
-              <p className="text-xs text-ink-900/40 mb-2">Comma separated — e.g. Python, React, AWS, PostgreSQL</p>
+              <p className="text-xs text-muted mb-2">Comma separated — e.g. Python, React, AWS, PostgreSQL</p>
               <textarea
                 autoFocus
                 value={skillsText}
@@ -329,13 +329,13 @@ export default function Onboarding({ userName, onComplete }: Props) {
           {step.id === 'projects' && (
             <div className="space-y-4">
               {projectEntries.map((entry, i) => (
-                <div key={i} className="p-4 rounded-2xl border border-ink-900/5 bg-cream-100/40 space-y-3">
+                <div key={i} className="p-4 rounded-xl border border-line bg-stone space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-ink-900/40 uppercase tracking-wide">Project {i + 1}</p>
+                    <p className="text-xs font-semibold text-muted uppercase tracking-wide">Project {i + 1}</p>
                     {projectEntries.length > 1 && (
                       <button
                         onClick={() => setProjectEntries(ps => ps.filter((_, idx) => idx !== i))}
-                        className="text-xs font-semibold text-ink-900/40 hover:text-red-600"
+                        className="text-xs font-semibold text-muted hover:text-bad"
                       >
                         Remove
                       </button>
@@ -349,14 +349,14 @@ export default function Onboarding({ userName, onComplete }: Props) {
                     <input type="text" value={entry.live_url} onChange={e => setProjectEntries(ps => ps.map((x, idx) => idx === i ? { ...x, live_url: e.target.value } : x))} placeholder="Live URL" className={inputClass} />
                   </div>
                   <label className="flex items-center gap-2 text-sm text-ink-900/70">
-                    <input type="checkbox" checked={entry.is_live} onChange={e => setProjectEntries(ps => ps.map((x, idx) => idx === i ? { ...x, is_live: e.target.checked } : x))} className="rounded border-ink-900/20 text-gold-400 focus:ring-gold-400" />
+                    <input type="checkbox" checked={entry.is_live} onChange={e => setProjectEntries(ps => ps.map((x, idx) => idx === i ? { ...x, is_live: e.target.checked } : x))} className="rounded border-line text-accent focus:ring-accent" />
                     This project is live
                   </label>
                 </div>
               ))}
               <button
                 onClick={() => setProjectEntries(ps => [...ps, { ...emptyProject }])}
-                className="text-sm font-semibold text-ink-900 bg-cream-200 hover:bg-cream-200/70 px-4 py-2 rounded-full"
+                className="text-sm font-semibold text-ink-900 bg-line hover:bg-stone px-4 py-2 rounded-lg"
               >
                 + Add another project
               </button>
@@ -395,20 +395,20 @@ export default function Onboarding({ userName, onComplete }: Props) {
           )}
         </div>
 
-        {error && <p className="text-sm text-red-600 mt-4">{error}</p>}
+        {error && <p className="text-sm text-bad mt-4">{error}</p>}
 
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-ink-900/5">
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-line">
           <button
             onClick={() => setStepIndex(i => i - 1)}
             disabled={stepIndex === 0 || saving}
-            className="px-4 py-2 text-sm font-semibold text-ink-900/60 hover:bg-cream-200 rounded-full disabled:opacity-0"
+            className="px-4 py-2 text-sm font-semibold text-muted hover:bg-stone rounded-lg disabled:opacity-0"
           >
             Back
           </button>
           <button
             onClick={goNext}
             disabled={saving}
-            className="px-6 py-3 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500 disabled:opacity-50"
+            className="px-6 py-3 bg-accent-hover text-white rounded-lg text-sm font-bold hover:bg-accent-deep disabled:opacity-50"
           >
             {saving ? 'Saving...' : stepIndex === STEPS.length - 1 ? 'Finish' : 'Next'}
           </button>

@@ -1,58 +1,66 @@
-import type { Page } from '../types'
-const nav = [
-  { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
-  { id: 'analyze',   label: 'Analyze JD', icon: '⚡' },
-  { id: 'discover',  label: 'Discover Jobs', icon: '🧭' },
-  { id: 'resumes',   label: 'My Resumes', icon: '📄' },
-  { id: 'interviews', label: 'Interviews', icon: '🎙️' },
-  { id: 'profile',   label: 'My Profile', icon: '👤' },
-]
+import { LogOut, X } from 'lucide-react'
+import Mascot from './Mascot'
+import type { Navigate, Page } from '../types'
+import { NAV_GROUPS } from '../nav'
 
 interface Props {
   currentPage: Page
-  setCurrentPage: (page: Page) => void
-  user: { id: string; name: string }
+  navigate: Navigate
+  user: { name: string; email?: string }
   onLogout: () => void
+  onClose?: () => void
 }
 
-export default function Sidebar({ currentPage, setCurrentPage, user, onLogout }: Props) {
+export default function Sidebar({ currentPage, navigate, user, onLogout, onClose }: Props) {
   const initial = user.name.trim().charAt(0).toUpperCase() || '?'
-
   return (
-    <aside className="w-64 bg-ink-900 rounded-[24px] flex flex-col shrink-0">
-      <div className="px-6 py-6">
-        <h1 className="text-xl font-extrabold text-cream-50 tracking-tight">JobOS</h1>
-        <p className="text-xs text-cream-50/50 mt-0.5">AI Job Search Agent</p>
-      </div>
-      <nav className="flex-1 px-4 py-2 space-y-2">
-        {nav.map(item => (
-          <button
-            key={item.id}
-            onClick={() => setCurrentPage(item.id as Page)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-semibold transition-colors ${
-              currentPage === item.id
-                ? 'bg-gold-400 text-ink-900'
-                : 'text-cream-50/60 hover:bg-white/5 hover:text-cream-50'
-            }`}
-          >
-            <span>{item.icon}</span>
-            {item.label}
+    <aside className="w-60 h-full bg-stone border-r border-line flex flex-col">
+      <div className="px-5 h-14 flex items-center justify-between shrink-0">
+        <h1 className="text-lg font-bold tracking-tight flex items-center gap-2">
+          <Mascot size={28} />JobOS
+        </h1>
+        {onClose && (
+          <button onClick={onClose} aria-label="Close menu" className="size-11 -mr-3 grid place-items-center rounded-lg text-muted hover:bg-line/60">
+            <X className="size-5" />
           </button>
+        )}
+      </div>
+      <nav aria-label="Main" className="flex-1 px-3 py-2 overflow-y-auto space-y-5">
+        {NAV_GROUPS.map(g => (
+          <div key={g.label}>
+            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">{g.label}</p>
+            <ul className="space-y-0.5">
+              {g.items.map(({ id, label, icon: Icon }) => {
+                const active = currentPage === id
+                return (
+                  <li key={id}>
+                    <button
+                      onClick={() => navigate(id)}
+                      aria-current={active ? 'page' : undefined}
+                      className={`relative w-full flex items-center gap-3 px-3 min-h-11 md:min-h-9 rounded-lg text-sm font-medium transition-colors ${
+                        active ? 'bg-accent-soft text-accent-deep' : 'text-ink-900/80 hover:bg-line/60'
+                      }`}
+                    >
+                      {active && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-accent" aria-hidden />}
+                      <Icon className={`size-4 ${active ? 'text-accent' : 'text-muted'}`} aria-hidden />
+                      {label}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
         ))}
       </nav>
-      <div className="mx-4 mb-4 p-4 rounded-2xl bg-white/5">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-gold-400 flex items-center justify-center text-ink-900 text-sm font-bold shrink-0">{initial}</div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-cream-50 truncate">{user.name}</p>
-          </div>
-          <button
-            onClick={onLogout}
-            className="text-xs font-semibold text-cream-50/40 hover:text-cream-50 shrink-0"
-          >
-            Log out
-          </button>
+      <div className="p-3 border-t border-line flex items-center gap-3 shrink-0">
+        <div className="size-8 rounded-full bg-accent-soft text-accent-deep grid place-items-center text-sm font-semibold shrink-0">{initial}</div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium truncate">{user.name}</p>
+          {user.email && <p className="text-xs text-muted truncate">{user.email}</p>}
         </div>
+        <button onClick={onLogout} aria-label="Log out" className="size-11 md:size-9 grid place-items-center rounded-lg text-muted hover:bg-line/60 hover:text-ink-900">
+          <LogOut className="size-4" />
+        </button>
       </div>
     </aside>
   )

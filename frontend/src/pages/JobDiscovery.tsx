@@ -1,137 +1,118 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { Compass, ExternalLink, Search } from 'lucide-react'
+import { apiFetch, useFetch } from '../api'
 import Toast from '../components/Toast'
-import { apiFetch } from '../api'
+import { Button, Card, Chip, EmptyState, ErrorState, Skeleton, inputCls } from '../components/ui'
+import type { Job, Navigate } from '../types'
 
-interface Job {
-  id: string
-  company: string
-  role: string
-  location: string | null
-  remote_type: string | null
-  status: string
-  required_skills: string[]
-  h1b_sponsor: boolean | null
-  f1_eligible: boolean
-  source_url: string | null
-}
+const sponsorship = (j: Job) =>
+  j.h1b_sponsor === true ? { tone: 'ok' as const, text: 'Sponsorship reported' }
+    : j.h1b_sponsor === false ? { tone: 'neutral' as const, text: 'No sponsorship reported' }
+      : { tone: 'neutral' as const, text: 'Sponsorship unknown — verify' }
 
-export default function JobDiscovery() {
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [loading, setLoading] = useState(true)
+export default function JobDiscovery({ navigate }: { navigate: Navigate }) {
+  const { data, error, loading, reload } = useFetch<{ jobs: Job[] }>('/api/jobs/')
   const [discovering, setDiscovering] = useState(false)
   const [toast, setToast] = useState<{ message: string; kind?: 'success' | 'error' } | null>(null)
+  const [query, setQuery] = useState('')
+  const [remote, setRemote] = useState('')
 
-  const loadJobs = () => {
-    setLoading(true)
-    apiFetch(`/api/jobs/`)
-      .then(r => r.json())
-      .then(data => setJobs(data.jobs || []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => {
-    loadJobs()
-  }, [])
-
-  const discoverJobs = async () => {
+  const discover = async () => {
     setDiscovering(true)
     try {
-      const res = await apiFetch(`/api/jobs/discover`, { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || 'Discovery failed')
-      setToast({ message: `Scanned ${data.scanned} postings — found ${data.found} new role${data.found === 1 ? '' : 's'}` })
-      loadJobs()
-    } catch (e: any) {
-      setToast({ message: e.message || 'Job discovery failed', kind: 'error' })
+      const res = await apiFetch('/api/jobs/discover', { method: 'POST' })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.detail || 'Discovery failed')
+      setToast({ message: `Scanned ${body.scanned} postings — ${body.found} new role${body.found === 1 ? '' : 's'}` })
+      reload()
+    } catch (e) {
+      setToast({ message: e instanceof Error ? e.message : 'Job discovery failed', kind: 'error' })
     } finally {
       setDiscovering(false)
     }
   }
 
-  const discovered = jobs.filter(j => j.status === 'found' && j.f1_eligible === true)
+  const q = query.trim().toLowerCase()
+  const jobs = (data?.jobs ?? [])
+    .filter(j => j.status === 'found' && j.f1_eligible === true && j.source_url)
+    .filter(j => !q || `${j.company} ${j.role} ${j.location ?? ''}`.toLowerCase().includes(q))
+    .filter(j => !remote || j.remote_type === remote)
 
   return (
-    <div className="p-8 max-w-4xl">
-      <div className="mb-6">
-        <h2 className="text-3xl font-extrabold text-ink-900 tracking-tight">Discover Jobs</h2>
-        <p className="text-ink-900/50 mt-1">Live web search for F1/OPT-eligible internships and new-grad roles</p>
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-4">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Discover jobs</h2>
+        <p className="text-muted mt-1">Live web search for internships and new-grad roles that mention F-1/OPT candidates.</p>
       </div>
 
-      {/* Discovery trigger */}
-      <div className="bg-ink-900 rounded-2xl p-6 mb-4 shadow-sm flex items-center justify-between">
+      <section className="bg-white border border-line rounded-xl p-5 md:p-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h3 className="text-lg font-bold text-cream-50">Grok Web Search</h3>
-          <p className="text-xs text-cream-50/40 mt-0.5">
-            {discovering ? 'Searching the live web for postings — this can take up to 30s...' : 'Finds real, currently-open postings that welcome F1/OPT candidates'}
+          <h3 className="font-bold">Run discovery</h3>
+          <p className="text-xs text-muted mt-0.5 max-w-md" aria-live="polite">
+            {discovering ? 'Searching the live web — this can take up to 30 seconds…' : 'Searches using your profile skills and graduation date. New roles are saved below.'}
           </p>
         </div>
-        <button
-          onClick={discoverJobs}
-          disabled={discovering}
-          className="px-4 py-2 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500 disabled:opacity-50 shrink-0"
-        >
-          {discovering ? '⏳ Searching...' : '🧭 Find F1-Eligible Roles'}
-        </button>
+        <Button variant="primary" onClick={discover} disabled={discovering}><Compass className="size-4" />{discovering ? 'Searching…' : 'Find roles'}</Button>
+      </section>
+
+      <p className="text-xs text-muted">
+        Sponsorship and eligibility labels come from each posting as read by an AI search and can be wrong or out of date.
+        Treat them as a research aid, not legal or immigration advice — confirm with the employer and your school's international office.
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        <label className="relative flex-1 min-w-48">
+          <span className="sr-only">Search roles</span>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted" aria-hidden />
+          <input className={`${inputCls} pl-9`} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search company, role or location" />
+        </label>
+        <label>
+          <span className="sr-only">Work arrangement</span>
+          <select className={`${inputCls} w-auto`} value={remote} onChange={e => setRemote(e.target.value)}>
+            <option value="">Any arrangement</option>
+            <option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="onsite">On-site</option>
+          </select>
+        </label>
       </div>
 
-      {/* Discovered jobs list */}
-      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 shadow-sm">
-        <h3 className="text-lg font-bold text-ink-900 mb-4">Discovered Roles ({discovered.length})</h3>
-
-        {loading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-20 bg-cream-200 rounded-2xl animate-pulse" />
-            ))}
-          </div>
-        ) : discovered.length === 0 ? (
-          <p className="text-sm text-ink-900/40">No discovered roles yet — click "Find F1-Eligible Roles" to search.</p>
+      {loading ? <Skeleton className="h-64" /> : error ? <Card><ErrorState what="roles" onRetry={reload} /></Card> :
+        jobs.length === 0 ? (
+          <Card><EmptyState title={data?.jobs.length ? 'No roles match your filters' : 'No discovered roles yet'}
+            hint={data?.jobs.length ? undefined : 'Run discovery to search for open roles.'} /></Card>
         ) : (
-          <div className="space-y-3">
-            {discovered.map(job => (
-              <div key={job.id} className="p-4 rounded-2xl border border-ink-900/5 bg-cream-100/40">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-ink-900 truncate">
-                      {job.company}
-                      <span className="text-ink-900/40 font-normal"> · {job.role}</span>
-                    </p>
-                    <p className="text-xs text-ink-900/50 mt-0.5">
-                      {job.location || 'Location unknown'}
-                      {job.remote_type && ` · ${job.remote_type}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {job.h1b_sponsor && (
-                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">H1B Sponsor</span>
+          <ul className="space-y-3">
+            {jobs.map(j => {
+              const s = sponsorship(j)
+              return (
+                <li key={j.id}>
+                  <Card className="!p-4 md:!p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-bold">{j.company}</p>
+                        <p className="text-sm text-muted">{j.role}</p>
+                        <p className="text-xs text-muted mt-1">{j.location || 'Location unknown'}{j.remote_type && ` · ${j.remote_type}`}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Chip tone={s.tone}>{s.text}</Chip>
+                        <Chip tone="accent">F-1/OPT mentioned</Chip>
+                      </div>
+                    </div>
+                    {j.required_skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-3">{j.required_skills.slice(0, 6).map(k => <Chip key={k}>{k}</Chip>)}</div>
                     )}
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-violet-100 text-violet-700">F1 Eligible</span>
-                  </div>
-                </div>
-                {job.required_skills?.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {job.required_skills.slice(0, 6).map(s => (
-                      <span key={s} className="px-2 py-0.5 bg-gold-300/30 text-ink-900/80 rounded-full text-xs">{s}</span>
-                    ))}
-                  </div>
-                )}
-                {job.source_url && (
-                  <a
-                    href={job.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block mt-3 text-xs font-semibold text-ink-900/60 hover:text-ink-900 underline"
-                  >
-                    View posting →
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      <a href={j.source_url!} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 min-h-11 md:min-h-10 px-4 rounded-lg border border-line bg-white text-sm font-semibold hover:bg-stone">
+                        View posting<ExternalLink className="size-4" aria-hidden /></a>
+                      <Button onClick={() => navigate('analyze')}>Analyze JD</Button>
+                      <Button variant="ghost" onClick={() => navigate('applications', 'found')}>Track</Button>
+                    </div>
+                  </Card>
+                </li>
+              )
+            })}
+          </ul>
         )}
-      </div>
-
       {toast && <Toast message={toast.message} kind={toast.kind} onDone={() => setToast(null)} />}
     </div>
   )

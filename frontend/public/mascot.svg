@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Rex, the JobOS dinosaur">
+  <!-- tail -->
+  <path d="M38 112 C14 112 6 128 10 140 C22 132 34 134 52 134 Z" fill="#5e9e6e"/>
+  <!-- back spikes -->
+  <g fill="#c96442">
+    <path d="M52 60 L60 40 L70 58 Z"/>
+    <path d="M42 80 L46 58 L58 74 Z"/>
+    <path d="M36 102 L36 80 L50 94 Z"/>
+  </g>
+  <!-- body -->
+  <ellipse cx="82" cy="106" rx="42" ry="36" fill="#5e9e6e"/>
+  <ellipse cx="90" cy="112" rx="26" ry="26" fill="#d7ead0"/>
+  <!-- feet -->
+  <ellipse cx="66" cy="141" rx="15" ry="7" fill="#3f7d58"/>
+  <ellipse cx="102" cy="141" rx="15" ry="7" fill="#3f7d58"/>
+  <!-- arms -->
+  <ellipse cx="112" cy="104" rx="8" ry="5" fill="#5e9e6e" transform="rotate(25 112 104)"/>
+  <!-- head -->
+  <rect x="58" y="22" width="76" height="62" rx="30" fill="#5e9e6e"/>
+  <!-- eyes -->
+  <circle cx="86" cy="50" r="9" fill="#fff"/><circle cx="116" cy="50" r="9" fill="#fff"/>
+  <circle cx="88" cy="51" r="5" fill="#262624"/><circle cx="118" cy="51" r="5" fill="#262624"/>
+  <circle cx="90" cy="49" r="1.8" fill="#fff"/><circle cx="120" cy="49" r="1.8" fill="#fff"/>
+  <!-- cheeks + nostrils + smile -->
+  <circle cx="76" cy="68" r="5" fill="#e9a58b" opacity=".75"/><circle cx="126" cy="68" r="5" fill="#e9a58b" opacity=".75"/>
+  <circle cx="98" cy="62" r="1.5" fill="#3f7d58"/><circle cx="106" cy="62" r="1.5" fill="#3f7d58"/>
+  <path d="M88 71 Q101 82 114 71" fill="none" stroke="#262624" stroke-width="3" stroke-linecap="round"/>
+</svg>

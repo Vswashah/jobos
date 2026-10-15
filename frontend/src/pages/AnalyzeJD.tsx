@@ -1,28 +1,17 @@
 import { useState } from 'react'
+import { Download, Zap, Info } from 'lucide-react'
 import { apiFetch } from '../api'
+import Mascot from '../components/Mascot'
+import { Button, Card, CardHeader, Chip, Field, inputCls } from '../components/ui'
 
 interface AnalysisResult {
-  extracted_skills: {
-    by_category: Record<string, string[]>
-    all_skills: string[]
-    total_found: number
-  }
-  skill_match: {
-    matching: string[]
-    missing: string[]
-    match_percentage: number
-    summary: string
-  }
-  recommended_projects: {
-    selected: Array<{
-      name: string
-      score: number
-      stack: string[]
-    }>
-    warning: string | null
-  }
-  message: string
+  extracted_skills: { by_category: Record<string, string[]>; total_found: number }
+  skill_match: { matching: string[]; missing: string[]; match_percentage: number }
+  recommended_projects: { selected: { name: string; score: number; stack: string[] }[]; warning: string | null }
 }
+
+const MIN_CHARS = 100
+const MAX_CHARS = 20000
 
 export default function AnalyzeJD() {
   const [jdText, setJdText] = useState('')
@@ -34,26 +23,23 @@ export default function AnalyzeJD() {
   const [error, setError] = useState('')
   const [downloading, setDownloading] = useState(false)
 
+  const len = jdText.trim().length
+  const tooShort = len > 0 && len < MIN_CHARS
+  const body = () => JSON.stringify({
+    jd_text: jdText, company: company || 'Company', role: role || 'Software Engineer Intern', team_focus: teamFocus,
+  })
+  const post = (path: string) => apiFetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body() })
+
   const analyze = async () => {
-    if (!jdText.trim()) return
     setLoading(true)
     setError('')
     setResult(null)
     try {
-      const res = await apiFetch('/api/resumes/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jd_text: jdText,
-          company: company || 'Company',
-          role: role || 'Software Engineer Intern',
-          team_focus: teamFocus,
-        }),
-      })
-      const data = await res.json()
-      setResult(data)
+      const res = await post('/api/resumes/analyze')
+      if (!res.ok) throw new Error()
+      setResult(await res.json())
     } catch {
-      setError('Failed to connect to JobOS API. Make sure the backend is running on port 8000.')
+      setError("We couldn't analyze that job description. Check your connection and try again.")
     } finally {
       setLoading(false)
     }
@@ -61,203 +47,121 @@ export default function AnalyzeJD() {
 
   const downloadResume = async () => {
     setDownloading(true)
+    setError('')
     try {
-      const res = await apiFetch('/api/resumes/generate-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jd_text: jdText,
-          company: company || 'Company',
-          role: role || 'Software Engineer Intern',
-          team_focus: teamFocus,
-        }),
-      })
-      const blob = await res.blob()
-      const url = window.URL.createObjectURL(blob)
+      const res = await post('/api/resumes/generate-pdf')
+      if (!res.ok) throw new Error(res.status === 400 ? (await res.json()).detail : undefined)
+      const url = URL.createObjectURL(await res.blob())
       const a = document.createElement('a')
       a.href = url
-      // Use the server's actual filename (built from the logged-in user's
-      // real name) rather than assuming who's downloading it.
-      const disposition = res.headers.get('content-disposition') || ''
-      const match = disposition.match(/filename="?([^"]+)"?/)
-      a.download = match ? match[1] : `${company || 'Resume'}.pdf`
+      const m = (res.headers.get('content-disposition') || '').match(/filename="?([^"]+)"?/)
+      a.download = m ? m[1] : `${company || 'Resume'}.pdf`
       a.click()
-      window.URL.revokeObjectURL(url)
-    } catch {
-      setError('Failed to generate resume.')
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : "We couldn't generate the resume PDF. Try again in a moment.")
     } finally {
       setDownloading(false)
     }
   }
 
+  const pct = result?.skill_match.match_percentage ?? 0
+  const bar = pct >= 80 ? 'bg-ok' : pct >= 60 ? 'bg-accent' : 'bg-bad'
+
   return (
-    <div className="p-8 max-w-5xl">
-      <div className="mb-6">
-        <h2 className="text-3xl font-extrabold text-ink-900 tracking-tight">Analyze Job Description</h2>
-        <p className="text-ink-900/50 mt-1">Paste a JD to get skill match and a tailored resume</p>
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-4">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Analyze a job description</h2>
+        <p className="text-muted mt-1">See how your profile matches, which projects to lead with, and get a tailored resume.</p>
       </div>
 
-      {/* Input */}
-      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 mb-6 shadow-sm">
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-semibold text-ink-900/70 mb-1">Company</label>
-            <input
-              type="text"
-              value={company}
-              onChange={e => setCompany(e.target.value)}
-              placeholder="Rivian, Google..."
-              className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-ink-900/70 mb-1">Role</label>
-            <input
-              type="text"
-              value={role}
-              onChange={e => setRole(e.target.value)}
-              placeholder="Software Engineer Intern"
-              className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-ink-900/70 mb-1">Team Focus</label>
-            <input
-              type="text"
-              value={teamFocus}
-              onChange={e => setTeamFocus(e.target.value)}
-              placeholder="vehicle telemetry, AI platform..."
-              className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
-            />
-          </div>
+      <Card>
+        <div className="grid md:grid-cols-3 gap-4 mb-4">
+          <Field label="Company"><input className={inputCls} value={company} onChange={e => setCompany(e.target.value)} placeholder="Rivian" /></Field>
+          <Field label="Role"><input className={inputCls} value={role} onChange={e => setRole(e.target.value)} placeholder="Software Engineer Intern" /></Field>
+          <Field label="Team focus (optional)"><input className={inputCls} value={teamFocus} onChange={e => setTeamFocus(e.target.value)} placeholder="vehicle telemetry" /></Field>
         </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-ink-900/70 mb-1">Job Description</label>
+        <Field label="Job description">
           <textarea
-            value={jdText}
-            onChange={e => setJdText(e.target.value)}
-            placeholder="Paste the full job description here..."
-            rows={8}
-            className="w-full px-4 py-3 border border-ink-900/10 bg-cream-100/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-gold-400 resize-none"
+            value={jdText} onChange={e => setJdText(e.target.value)} maxLength={MAX_CHARS} rows={9}
+            aria-describedby="jd-help" aria-invalid={tooShort}
+            placeholder="Paste the full job description here…"
+            className="w-full px-4 py-3 rounded-xl border border-line bg-white text-sm resize-y"
           />
+        </Field>
+        <div id="jd-help" className="flex justify-between gap-3 text-xs mt-1.5">
+          <span className={tooShort ? 'text-bad' : 'text-muted'}>{tooShort ? `Paste at least ${MIN_CHARS} characters for a useful result.` : ''}</span>
+          <span className="text-muted tabular-nums">{len.toLocaleString()} / {MAX_CHARS.toLocaleString()}</span>
         </div>
-
-        <div className="flex items-center gap-3 mt-4">
-          <button
-            onClick={analyze}
-            disabled={loading || !jdText.trim()}
-            className="px-6 py-2.5 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? '⏳ Analyzing...' : '⚡ Analyze JD'}
-          </button>
-          {result && (
-            <button
-              onClick={downloadResume}
-              disabled={downloading}
-              className="px-6 py-2.5 bg-ink-900 text-cream-50 rounded-full text-sm font-bold hover:bg-ink-800 disabled:opacity-50 transition-colors"
-            >
-              {downloading ? '⏳ Generating...' : '⬇ Download Resume PDF'}
-            </button>
-          )}
+        <p className="flex gap-2 text-xs text-muted mt-3"><Info className="size-4 shrink-0" aria-hidden />
+          The job description you paste is saved to your account. Avoid pasting personal information you don't need to.</p>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <Button variant="primary" onClick={analyze} disabled={loading || len < MIN_CHARS}><Zap className="size-4" />{loading ? 'Analyzing…' : 'Analyze JD'}</Button>
         </div>
+        {error && <p role="alert" className="mt-3 text-sm text-bad">{error} <button className="underline font-semibold" onClick={result ? downloadResume : analyze}>Retry</button></p>}
+      </Card>
 
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-      </div>
+      {loading && (
+        <Card className="flex items-center gap-4" aria-live="polite">
+          <Mascot size={88} mood="think" />
+          <div><p className="font-semibold">Reading the job description…</p><p className="text-sm text-muted">Matching it against your skills and projects.</p></div>
+        </Card>
+      )}
 
-      {/* Results */}
       {result && (
-        <div className="space-y-4">
-
-          {/* Match Score */}
-          <div className="bg-white rounded-2xl border border-ink-900/5 p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-bold text-ink-900">Skill Match</h3>
-              <span className={`text-3xl font-extrabold ${
-                result.skill_match.match_percentage >= 80 ? 'text-emerald-600' :
-                result.skill_match.match_percentage >= 60 ? 'text-gold-500' : 'text-red-500'
-              }`}>
-                {result.skill_match.match_percentage}%
-              </span>
+        <>
+          <Card>
+            <CardHeader title="Skill match" subtitle="Share of skills found in this JD that appear on your profile. This is keyword matching, not a hiring prediction."
+              action={<span className="text-3xl font-bold">{pct}%</span>} />
+            <div className="h-2 rounded-full bg-stone mb-5" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Skill match">
+              <div className={`h-2 rounded-full ${bar}`} style={{ width: `${pct}%` }} />
             </div>
-            <div className="w-full bg-cream-200 rounded-full h-2 mb-5">
-              <div
-                className={`h-2 rounded-full transition-all ${
-                  result.skill_match.match_percentage >= 80 ? 'bg-emerald-500' :
-                  result.skill_match.match_percentage >= 60 ? 'bg-gold-400' : 'bg-red-500'
-                }`}
-                style={{ width: `${result.skill_match.match_percentage}%` }}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <p className="text-sm font-semibold text-ink-900/70 mb-2">✅ You have ({result.skill_match.matching.length})</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {result.skill_match.matching.map(s => (
-                    <span key={s} className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs">{s}</span>
-                  ))}
-                </div>
+                <p className="text-sm font-semibold mb-2">On your profile ({result.skill_match.matching.length})</p>
+                <div className="flex flex-wrap gap-1.5">{result.skill_match.matching.map(s => <Chip key={s} tone="ok">{s}</Chip>)}</div>
               </div>
               <div>
-                <p className="text-sm font-semibold text-ink-900/70 mb-2">❌ Missing ({result.skill_match.missing.length})</p>
+                <p className="text-sm font-semibold mb-2">Not on your profile ({result.skill_match.missing.length})</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {result.skill_match.missing.length === 0 ? (
-                    <span className="text-sm text-ink-900/30">None — perfect match!</span>
-                  ) : result.skill_match.missing.map(s => (
-                    <span key={s} className="px-2.5 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs">{s}</span>
-                  ))}
+                  {result.skill_match.missing.length === 0 ? <span className="text-sm text-muted">Every skill in this JD is on your profile.</span>
+                    : result.skill_match.missing.map(s => <Chip key={s} tone="bad">{s}</Chip>)}
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
 
-          {/* Skills Found */}
-          <div className="bg-white rounded-2xl border border-ink-900/5 p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-ink-900 mb-4">
-              Skills Found in JD ({result.extracted_skills.total_found})
-            </h3>
-            <div className="space-y-2">
+          <Card>
+            <CardHeader title="Skills found in the JD" subtitle={`${result.extracted_skills.total_found} detected`} />
+            <dl className="space-y-2">
               {Object.entries(result.extracted_skills.by_category).map(([cat, skills]) => (
-                <div key={cat} className="flex items-start gap-3">
-                  <span className="text-sm font-semibold text-ink-900/40 w-24 capitalize shrink-0 pt-0.5">{cat}</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {skills.map(s => (
-                      <span key={s} className="px-2.5 py-0.5 bg-gold-300/30 text-ink-900/80 border border-gold-400/30 rounded-full text-xs">{s}</span>
-                    ))}
-                  </div>
+                <div key={cat} className="flex gap-3">
+                  <dt className="text-sm text-muted w-24 capitalize shrink-0 pt-1">{cat}</dt>
+                  <dd className="flex flex-wrap gap-1.5">{skills.map(s => <Chip key={s} tone="accent">{s}</Chip>)}</dd>
                 </div>
               ))}
-            </div>
-          </div>
+            </dl>
+          </Card>
 
-          {/* Projects */}
-          <div className="bg-white rounded-2xl border border-ink-900/5 p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-ink-900 mb-4">Recommended Projects</h3>
-            {result.recommended_projects.warning && (
-              <div className="mb-4 p-3 bg-gold-300/20 border border-gold-400/40 rounded-xl text-sm text-ink-900/80">
-                ⚠️ {result.recommended_projects.warning}
-              </div>
-            )}
-            <div className="space-y-3">
-              {result.recommended_projects.selected.map((project, i) => (
-                <div key={project.name} className="flex items-center gap-4 p-3 rounded-2xl border border-ink-900/5 bg-cream-100/50">
-                  <div className="w-8 h-8 rounded-full bg-ink-900 text-cream-50 flex items-center justify-center text-sm font-bold shrink-0">
-                    {i + 1}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-ink-900">{project.name}</p>
-                    <p className="text-xs text-ink-900/50 mt-0.5">{project.stack.slice(0, 5).join(' · ')}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-sm font-bold text-ink-900">{project.score}</span>
-                    <p className="text-xs text-ink-900/40">score</p>
-                  </div>
-                </div>
+          <Card>
+            <CardHeader title="Projects to lead with" subtitle="Ranked from your own projects by overlap with this JD" />
+            {result.recommended_projects.warning && <p className="mb-3 p-3 rounded-xl bg-accent-soft text-sm">{result.recommended_projects.warning}</p>}
+            <ol className="space-y-2">
+              {result.recommended_projects.selected.map((p, i) => (
+                <li key={p.name} className="flex items-center gap-3 p-3 rounded-xl bg-canvas border border-line">
+                  <span className="size-8 rounded-full bg-ink-900 text-white grid place-items-center text-sm font-bold shrink-0">{i + 1}</span>
+                  <div className="flex-1 min-w-0"><p className="text-sm font-semibold truncate">{p.name}</p><p className="text-xs text-muted truncate">{p.stack.slice(0, 5).join(' · ')}</p></div>
+                  <span className="text-sm font-bold" title="Relevance score">{p.score}</span>
+                </li>
               ))}
-            </div>
-          </div>
+            </ol>
+          </Card>
 
-        </div>
+          <Card className="flex flex-wrap items-center justify-between gap-3">
+            <div><h3 className="font-bold">Tailored resume</h3><p className="text-xs text-muted">Built from your profile, using the projects and experience above. Exports as PDF.</p></div>
+            <Button variant="primary" onClick={downloadResume} disabled={downloading}><Download className="size-4" />{downloading ? 'Generating…' : 'Download PDF'}</Button>
+          </Card>
+        </>
       )}
     </div>
   )

@@ -1,3 +1,5 @@
+<p align="center"><img src="frontend/public/mascot.svg" alt="Rex, the JobOS dinosaur" width="140"></p>
+
 # JobOS
 
 An AI-assisted job-search workspace for international students in the US (F-1 / OPT). Paste a job description, see how it matches your profile, get a one-page tailored resume PDF, discover open roles, and track applications and interviews in one place.

@@ -20,14 +20,14 @@ export default function Modal({ title, onClose, children }: Props) {
       onClick={onClose}
     >
       <div
-        className="bg-cream-50 rounded-[28px] shadow-2xl w-full max-w-md max-h-[85vh] overflow-y-auto"
+        className="bg-canvas rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-ink-900/5 sticky top-0 bg-cream-50 rounded-t-[28px]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-line sticky top-0 bg-canvas rounded-t-xl">
           <h3 className="text-lg font-bold text-ink-900">{title}</h3>
           <button
             onClick={onClose}
-            className="text-ink-900/40 hover:text-ink-900 text-xl leading-none"
+            className="text-muted hover:text-ink-900 text-xl leading-none"
             aria-label="Close"
           >
             ×

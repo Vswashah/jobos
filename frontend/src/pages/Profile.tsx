@@ -68,8 +68,8 @@ const emptyPreferencesForm = {
   job_type: 'full-time', remote_preference: 'any', target_roles: '', preferred_locations: '',
 }
 
-const inputClass = 'w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400'
-const textareaClass = 'w-full px-4 py-3 border border-ink-900/10 bg-cream-100/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-gold-400 resize-none'
+const inputClass = 'w-full px-4 min-h-11 md:min-h-10 px-4 border border-line bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent'
+const textareaClass = 'w-full px-4 py-3 border border-line bg-stone rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none'
 const labelClass = 'block text-sm font-semibold text-ink-900/70 mb-1'
 
 export default function Profile() {
@@ -426,25 +426,25 @@ export default function Profile() {
   }
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-4 md:p-8 max-w-4xl">
       <div className="mb-6">
-        <h2 className="text-3xl font-extrabold text-ink-900 tracking-tight">My Profile</h2>
-        <p className="text-ink-900/50 mt-1">Your skills and projects used for resume generation</p>
+        <h2 className="text-2xl font-bold tracking-tight">My Profile</h2>
+        <p className="text-muted mt-1">Your skills and projects used for resume generation</p>
       </div>
 
       {loadError && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center justify-between">
+        <div className="mb-4 p-3 bg-bad/10 border border-bad/30 rounded-xl text-sm text-bad flex items-center justify-between">
           <span>Failed to connect to JobOS API. Make sure the backend is running on port 8000.</span>
-          <button onClick={loadProfile} className="text-red-700 font-semibold hover:underline shrink-0 ml-3">Retry</button>
+          <button onClick={loadProfile} className="text-bad font-semibold hover:underline shrink-0 ml-3">Retry</button>
         </div>
       )}
 
       {/* Personal Info */}
-      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 mb-4 shadow-sm">
+      <div className="bg-white rounded-xl border border-line p-6 mb-4 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-ink-900">Personal Info</h3>
           {!loading && (
-            <button onClick={openEditPersonal} className="text-sm text-ink-900 bg-gold-400 hover:bg-gold-500 font-semibold px-3 py-1.5 rounded-full transition-colors">Edit</button>
+            <button onClick={openEditPersonal} className="text-sm text-white bg-accent-hover hover:bg-accent-deep font-semibold px-3 py-1.5 rounded-lg transition-colors">Edit</button>
           )}
         </div>
         {loading ? (
@@ -464,7 +464,7 @@ export default function Profile() {
               ['Portfolio', personal?.portfolio_url || '—'],
             ].map(([label, value]) => (
               <div key={label}>
-                <span className="text-ink-900/50">{label}:</span>
+                <span className="text-muted">{label}:</span>
                 <span className="font-semibold ml-2 text-ink-900">{value}</span>
               </div>
             ))}
@@ -473,25 +473,25 @@ export default function Profile() {
       </div>
 
       {/* Education */}
-      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 mb-4 shadow-sm">
+      <div className="bg-white rounded-xl border border-line p-6 mb-4 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-ink-900">Education ({education.length})</h3>
-          <button onClick={openAddEducation} className="text-sm text-ink-900 bg-gold-400 hover:bg-gold-500 font-semibold px-3 py-1.5 rounded-full transition-colors">+ Add Education</button>
+          <button onClick={openAddEducation} className="text-sm text-white bg-accent-hover hover:bg-accent-deep font-semibold px-3 py-1.5 rounded-lg transition-colors">+ Add Education</button>
         </div>
         {loading ? (
           <SkeletonRows />
         ) : education.length === 0 ? (
-          <p className="text-sm text-ink-900/40">No education yet — add your first one.</p>
+          <p className="text-sm text-muted">No education yet — add your first one.</p>
         ) : (
           <div className="space-y-3">
             {education.map(e => (
-              <div key={e.id} className="flex items-center gap-4 p-4 rounded-2xl border border-ink-900/5 bg-cream-100/40 hover:bg-cream-100/70 transition-colors">
+              <div key={e.id} className="flex items-center gap-4 p-4 rounded-xl border border-line bg-stone hover:bg-stone transition-colors">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-ink-900 truncate">{e.degree}</p>
-                  <p className="text-xs text-ink-900/50 mt-0.5 truncate">{e.school}{e.track ? ` · ${e.track}` : ''}</p>
+                  <p className="text-xs text-muted mt-0.5 truncate">{e.school}{e.track ? ` · ${e.track}` : ''}</p>
                 </div>
-                <button onClick={() => openEditEducation(e)} className="text-xs font-semibold text-ink-900/50 hover:text-ink-900 shrink-0">Edit</button>
-                <button onClick={() => removeEducation(e)} className="text-xs font-semibold text-ink-900/50 hover:text-red-600 shrink-0">Delete</button>
+                <button onClick={() => openEditEducation(e)} className="text-xs font-semibold text-muted hover:text-ink-900 shrink-0">Edit</button>
+                <button onClick={() => removeEducation(e)} className="text-xs font-semibold text-muted hover:text-bad shrink-0">Delete</button>
               </div>
             ))}
           </div>
@@ -499,23 +499,23 @@ export default function Profile() {
       </div>
 
       {/* Skills */}
-      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 mb-4 shadow-sm">
+      <div className="bg-white rounded-xl border border-line p-6 mb-4 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-ink-900">Skills ({skills.length})</h3>
-          <button onClick={openAddSkill} className="text-sm text-ink-900 bg-gold-400 hover:bg-gold-500 font-semibold px-3 py-1.5 rounded-full transition-colors">+ Add Skill</button>
+          <button onClick={openAddSkill} className="text-sm text-white bg-accent-hover hover:bg-accent-deep font-semibold px-3 py-1.5 rounded-lg transition-colors">+ Add Skill</button>
         </div>
         {loading ? (
           <SkeletonChips />
         ) : skills.length === 0 ? (
-          <p className="text-sm text-ink-900/40">No skills yet — add your first one.</p>
+          <p className="text-sm text-muted">No skills yet — add your first one.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {skills.map(s => (
-              <span key={s.id} className="group flex items-center gap-1.5 pl-3 pr-2 py-1 bg-cream-200 text-ink-900/80 rounded-full text-sm">
+              <span key={s.id} className="group flex items-center gap-1.5 pl-3 pr-2 py-1 bg-line text-ink-900/80 rounded-lg text-sm">
                 {s.name}
                 <button
                   onClick={() => removeSkill(s)}
-                  className="text-ink-900/30 opacity-0 group-hover:opacity-100 hover:text-red-600 transition-opacity leading-none"
+                  className="text-muted opacity-0 group-hover:opacity-100 hover:text-bad transition-opacity leading-none"
                   aria-label={`Remove ${s.name}`}
                 >
                   ×
@@ -527,30 +527,30 @@ export default function Profile() {
       </div>
 
       {/* Projects */}
-      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 mb-4 shadow-sm">
+      <div className="bg-white rounded-xl border border-line p-6 mb-4 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-ink-900">Projects ({projects.length})</h3>
-          <button onClick={openAddProject} className="text-sm text-ink-900 bg-gold-400 hover:bg-gold-500 font-semibold px-3 py-1.5 rounded-full transition-colors">+ Add Project</button>
+          <button onClick={openAddProject} className="text-sm text-white bg-accent-hover hover:bg-accent-deep font-semibold px-3 py-1.5 rounded-lg transition-colors">+ Add Project</button>
         </div>
         {loading ? (
           <SkeletonRows />
         ) : projects.length === 0 ? (
-          <p className="text-sm text-ink-900/40">No projects yet — add your first one.</p>
+          <p className="text-sm text-muted">No projects yet — add your first one.</p>
         ) : (
           <div className="space-y-3">
             {projects.map(p => (
-              <div key={p.id} className="flex items-center gap-4 p-4 rounded-2xl border border-ink-900/5 bg-cream-100/40 hover:bg-cream-100/70 transition-colors">
+              <div key={p.id} className="flex items-center gap-4 p-4 rounded-xl border border-line bg-stone hover:bg-stone transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold text-ink-900 truncate">{p.name}</p>
                     {p.is_live && (
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs shrink-0">Live</span>
+                      <span className="px-2 py-0.5 bg-ok/10 text-ok border border-ok/30 rounded-full text-xs shrink-0">Live</span>
                     )}
                   </div>
-                  <p className="text-xs text-ink-900/50 mt-0.5 truncate">{p.stack.join(' · ') || 'No stack listed'}</p>
+                  <p className="text-xs text-muted mt-0.5 truncate">{p.stack.join(' · ') || 'No stack listed'}</p>
                 </div>
-                <button onClick={() => openEditProject(p)} className="text-xs font-semibold text-ink-900/50 hover:text-ink-900 shrink-0">Edit</button>
-                <button onClick={() => removeProject(p)} className="text-xs font-semibold text-ink-900/50 hover:text-red-600 shrink-0">Delete</button>
+                <button onClick={() => openEditProject(p)} className="text-xs font-semibold text-muted hover:text-ink-900 shrink-0">Edit</button>
+                <button onClick={() => removeProject(p)} className="text-xs font-semibold text-muted hover:text-bad shrink-0">Delete</button>
               </div>
             ))}
           </div>
@@ -558,11 +558,11 @@ export default function Profile() {
       </div>
 
       {/* Job Preferences */}
-      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 shadow-sm">
+      <div className="bg-white rounded-xl border border-line p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-ink-900">Job Preferences</h3>
           {!loading && (
-            <button onClick={openEditPreferences} className="text-sm text-ink-900 bg-gold-400 hover:bg-gold-500 font-semibold px-3 py-1.5 rounded-full transition-colors">Edit</button>
+            <button onClick={openEditPreferences} className="text-sm text-white bg-accent-hover hover:bg-accent-deep font-semibold px-3 py-1.5 rounded-lg transition-colors">Edit</button>
           )}
         </div>
         {loading ? (
@@ -576,7 +576,7 @@ export default function Profile() {
               ['Preferred locations', personal?.preferred_locations?.length ? personal.preferred_locations.join(', ') : '—'],
             ].map(([label, value]) => (
               <div key={label}>
-                <span className="text-ink-900/50">{label}:</span>
+                <span className="text-muted">{label}:</span>
                 <span className="font-semibold ml-2 text-ink-900">{value}</span>
               </div>
             ))}
@@ -597,7 +597,7 @@ export default function Profile() {
                 onChange={e => setSkillName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && submitSkill()}
                 placeholder="e.g. Rust"
-                className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                className="w-full px-4 min-h-11 md:min-h-10 px-4 border border-line bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
             <div>
@@ -605,7 +605,7 @@ export default function Profile() {
               <select
                 value={skillCategory}
                 onChange={e => setSkillCategory(e.target.value)}
-                className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                className="w-full px-4 min-h-11 md:min-h-10 px-4 border border-line bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 {['language', 'framework', 'database', 'cloud', 'tool', 'ai_ml', 'other'].map(c => (
                   <option key={c} value={c}>{c}</option>
@@ -613,13 +613,13 @@ export default function Profile() {
               </select>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setSkillModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-ink-900/60 hover:bg-cream-200 rounded-full">
+              <button onClick={() => setSkillModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-muted hover:bg-stone rounded-lg">
                 Cancel
               </button>
               <button
                 onClick={submitSkill}
                 disabled={savingSkill || !skillName.trim()}
-                className="px-4 py-2 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500 disabled:opacity-50"
+                className="px-4 py-2 bg-accent-hover text-white rounded-lg text-sm font-bold hover:bg-accent-deep disabled:opacity-50"
               >
                 {savingSkill ? 'Adding...' : 'Add Skill'}
               </button>
@@ -640,7 +640,7 @@ export default function Profile() {
                 value={projectForm.name}
                 onChange={e => setProjectForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="Project name"
-                className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                className="w-full px-4 min-h-11 md:min-h-10 px-4 border border-line bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
             <div>
@@ -650,7 +650,7 @@ export default function Profile() {
                 onChange={e => setProjectForm(f => ({ ...f, description: e.target.value }))}
                 rows={2}
                 placeholder="One-line description"
-                className="w-full px-4 py-3 border border-ink-900/10 bg-cream-100/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-gold-400 resize-none"
+                className="w-full px-4 py-3 border border-line bg-stone rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none"
               />
             </div>
             <div>
@@ -660,7 +660,7 @@ export default function Profile() {
                 value={projectForm.stack}
                 onChange={e => setProjectForm(f => ({ ...f, stack: e.target.value }))}
                 placeholder="React, Node.js, PostgreSQL"
-                className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                className="w-full px-4 min-h-11 md:min-h-10 px-4 border border-line bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -671,7 +671,7 @@ export default function Profile() {
                   value={projectForm.github_url}
                   onChange={e => setProjectForm(f => ({ ...f, github_url: e.target.value }))}
                   placeholder="github.com/..."
-                  className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                  className="w-full px-4 min-h-11 md:min-h-10 px-4 border border-line bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
               <div>
@@ -681,7 +681,7 @@ export default function Profile() {
                   value={projectForm.live_url}
                   onChange={e => setProjectForm(f => ({ ...f, live_url: e.target.value }))}
                   placeholder="myproject.com"
-                  className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                  className="w-full px-4 min-h-11 md:min-h-10 px-4 border border-line bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
             </div>
@@ -690,18 +690,18 @@ export default function Profile() {
                 type="checkbox"
                 checked={projectForm.is_live}
                 onChange={e => setProjectForm(f => ({ ...f, is_live: e.target.checked }))}
-                className="rounded border-ink-900/20 text-gold-400 focus:ring-gold-400"
+                className="rounded border-line text-accent focus:ring-accent"
               />
               This project is live
             </label>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setProjectModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-ink-900/60 hover:bg-cream-200 rounded-full">
+              <button onClick={() => setProjectModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-muted hover:bg-stone rounded-lg">
                 Cancel
               </button>
               <button
                 onClick={submitProject}
                 disabled={savingProject || !projectForm.name.trim()}
-                className="px-4 py-2 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500 disabled:opacity-50"
+                className="px-4 py-2 bg-accent-hover text-white rounded-lg text-sm font-bold hover:bg-accent-deep disabled:opacity-50"
               >
                 {savingProject ? 'Saving...' : editingProjectId ? 'Save Changes' : 'Add Project'}
               </button>
@@ -759,13 +759,13 @@ export default function Profile() {
               <input type="text" value={personalForm.portfolio_url} onChange={e => setPersonalForm(f => ({ ...f, portfolio_url: e.target.value }))} className={inputClass} />
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setPersonalModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-ink-900/60 hover:bg-cream-200 rounded-full">
+              <button onClick={() => setPersonalModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-muted hover:bg-stone rounded-lg">
                 Cancel
               </button>
               <button
                 onClick={submitPersonal}
                 disabled={savingPersonal || !personalForm.name.trim()}
-                className="px-4 py-2 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500 disabled:opacity-50"
+                className="px-4 py-2 bg-accent-hover text-white rounded-lg text-sm font-bold hover:bg-accent-deep disabled:opacity-50"
               >
                 {savingPersonal ? 'Saving...' : 'Save Changes'}
               </button>
@@ -817,13 +817,13 @@ export default function Profile() {
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setPreferencesModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-ink-900/60 hover:bg-cream-200 rounded-full">
+              <button onClick={() => setPreferencesModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-muted hover:bg-stone rounded-lg">
                 Cancel
               </button>
               <button
                 onClick={submitPreferences}
                 disabled={savingPreferences}
-                className="px-4 py-2 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500 disabled:opacity-50"
+                className="px-4 py-2 bg-accent-hover text-white rounded-lg text-sm font-bold hover:bg-accent-deep disabled:opacity-50"
               >
                 {savingPreferences ? 'Saving...' : 'Save Changes'}
               </button>
@@ -887,13 +887,13 @@ export default function Profile() {
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setEducationModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-ink-900/60 hover:bg-cream-200 rounded-full">
+              <button onClick={() => setEducationModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-muted hover:bg-stone rounded-lg">
                 Cancel
               </button>
               <button
                 onClick={submitEducation}
                 disabled={savingEducation || !educationForm.degree.trim() || !educationForm.school.trim()}
-                className="px-4 py-2 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500 disabled:opacity-50"
+                className="px-4 py-2 bg-accent-hover text-white rounded-lg text-sm font-bold hover:bg-accent-deep disabled:opacity-50"
               >
                 {savingEducation ? 'Saving...' : editingEducationId ? 'Save Changes' : 'Add Education'}
               </button>
@@ -911,7 +911,7 @@ function SkeletonGrid() {
   return (
     <div className="grid grid-cols-2 gap-4">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-4 bg-cream-200 rounded-full animate-pulse" />
+        <div key={i} className="h-4 bg-line rounded-full animate-pulse" />
       ))}
     </div>
   )
@@ -921,7 +921,7 @@ function SkeletonChips() {
   return (
     <div className="flex flex-wrap gap-2">
       {Array.from({ length: 10 }).map((_, i) => (
-        <div key={i} className="h-7 w-20 bg-cream-200 rounded-full animate-pulse" />
+        <div key={i} className="h-7 w-20 bg-line rounded-full animate-pulse" />
       ))}
     </div>
   )
@@ -931,7 +931,7 @@ function SkeletonRows() {
   return (
     <div className="space-y-3">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="h-14 bg-cream-200 rounded-2xl animate-pulse" />
+        <div key={i} className="h-14 bg-line rounded-xl animate-pulse" />
       ))}
     </div>
   )

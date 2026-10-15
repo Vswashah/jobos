@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import Modal from '../components/Modal'
+import { Button, Card, CardHeader, Chip, EmptyState, ErrorState, Skeleton } from '../components/ui'
 import Toast from '../components/Toast'
 import { API_BASE } from '../config'
 import { apiFetch } from '../api'
@@ -24,6 +25,7 @@ const emptyForm = {
 export default function Interviews() {
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [connected, setConnected] = useState<boolean | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [toast, setToast] = useState<{ message: string; kind?: 'success' | 'error' } | null>(null)
@@ -34,10 +36,11 @@ export default function Interviews() {
 
   const loadInterviews = () => {
     setLoading(true)
+    setLoadError(false)
     apiFetch(`/api/interviews/`)
-      .then(r => r.json())
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error())))
       .then(data => setInterviews(data.interviews || []))
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false))
   }
 
@@ -121,10 +124,16 @@ export default function Interviews() {
     }
   }
 
+  const nowMs = Date.now()
+  const isUpcoming = (iv: Interview) => !!iv.interview_date && new Date(iv.interview_date).getTime() >= nowMs
+  const byDate = (a: Interview, b: Interview) => new Date(a.interview_date ?? 0).getTime() - new Date(b.interview_date ?? 0).getTime()
+  const upcoming = interviews.filter(isUpcoming).sort(byDate)
+  const past = interviews.filter(iv => !isUpcoming(iv)).sort((a, b) => byDate(b, a))
+
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return 'Date TBD'
     return new Date(dateStr).toLocaleString('en-US', {
-      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
     })
   }
 
@@ -137,17 +146,17 @@ export default function Interviews() {
   }
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-3xl font-extrabold text-ink-900 tracking-tight">Interviews</h2>
-        <p className="text-ink-900/50 mt-1">Auto-detected from Gmail, or logged manually</p>
+        <h2 className="text-2xl font-bold tracking-tight">Interviews</h2>
+        <p className="text-muted mt-1">Detected from Gmail by an AI scan (check the details), or logged manually.</p>
       </div>
 
       {/* Gmail connection */}
-      <div className="bg-ink-900 rounded-2xl p-6 mb-4 shadow-sm flex items-center justify-between">
+      <div className="bg-white border border-line rounded-xl p-5 md:p-6 mb-4 flex flex-wrap gap-3 items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-cream-50">Gmail Integration</h3>
-          <p className="text-xs text-cream-50/40 mt-0.5">
+          <h3 className="text-lg font-bold text-ink-900">Gmail Integration</h3>
+          <p className="text-xs text-muted mt-0.5">
             {connected === null ? 'Checking connection...'
               : connected ? 'Connected — scans your inbox for interview invites'
               : 'Not connected yet'}
@@ -159,13 +168,13 @@ export default function Interviews() {
               <button
                 onClick={syncGmail}
                 disabled={syncing}
-                className="px-4 py-2 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500 disabled:opacity-50"
+                className="px-4 py-2 bg-accent-hover text-white rounded-lg text-sm font-bold hover:bg-accent-deep disabled:opacity-50"
               >
                 {syncing ? '⏳ Syncing...' : '🔄 Sync Now'}
               </button>
               <button
                 onClick={disconnectGmail}
-                className="px-4 py-2 text-cream-50/60 hover:text-cream-50 rounded-full text-sm font-semibold"
+                className="px-4 py-2 text-muted hover:text-ink-900 rounded-lg text-sm font-semibold"
               >
                 Disconnect
               </button>
@@ -173,7 +182,7 @@ export default function Interviews() {
           ) : (
             <button
               onClick={connectGmail}
-              className="px-4 py-2 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500"
+              className="px-4 py-2 bg-accent-hover text-white rounded-lg text-sm font-bold hover:bg-accent-deep"
             >
               Connect Gmail
             </button>
@@ -182,53 +191,30 @@ export default function Interviews() {
       </div>
 
       {/* Interviews list */}
-      <div className="bg-white rounded-2xl border border-ink-900/5 p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-ink-900">Upcoming & Past ({interviews.length})</h3>
-          <button
-            onClick={openLogInterview}
-            className="text-sm text-ink-900 bg-gold-400 hover:bg-gold-500 font-semibold px-3 py-1.5 rounded-full transition-colors"
-          >
-            + Log Interview
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-16 bg-cream-200 rounded-2xl animate-pulse" />
-            ))}
-          </div>
-        ) : interviews.length === 0 ? (
-          <p className="text-sm text-ink-900/40">No interviews yet — connect Gmail or log one manually.</p>
-        ) : (
-          <div className="space-y-3">
-            {interviews.map(iv => (
-              <div key={iv.id} className="flex items-center gap-4 p-4 rounded-2xl border border-ink-900/5 bg-cream-100/40">
-                <div className="w-10 h-10 rounded-full bg-gold-300/40 flex items-center justify-center text-lg shrink-0">
-                  {formatIcon(iv.format)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-ink-900 truncate">
-                    {iv.company} — Round {iv.round}
-                    {iv.role && <span className="text-ink-900/40 font-normal"> · {iv.role}</span>}
-                  </p>
-                  <p className="text-xs text-ink-900/50 mt-0.5">
-                    {formatDate(iv.interview_date)}
-                    {iv.interviewer_name && ` · ${iv.interviewer_name}`}
-                  </p>
-                  {iv.notes && <p className="text-xs text-ink-900/40 mt-1 truncate">{iv.notes}</p>}
-                </div>
-                {iv.outcome && (
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-cream-200 text-ink-900/70 shrink-0 capitalize">
-                    {iv.outcome}
-                  </span>
-                )}
+      <Card>
+        <CardHeader title="Interviews" action={<Button variant="primary" onClick={openLogInterview}>+ Log interview</Button>} />
+        {loading ? <Skeleton className="h-40" /> : loadError ? <ErrorState what="interviews" onRetry={loadInterviews} /> :
+          interviews.length === 0 ? <EmptyState title="No interviews yet" hint="Connect Gmail to detect invites, or log one manually." /> : (
+            [{ label: 'Upcoming', items: upcoming }, { label: 'Past or undated', items: past }].filter(g => g.items.length).map(g => (
+              <div key={g.label} className="mb-5 last:mb-0">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">{g.label} ({g.items.length})</h4>
+                <ul className="space-y-2">
+                  {g.items.map(iv => (
+                    <li key={iv.id} className="flex items-center gap-4 p-4 rounded-xl border border-line bg-canvas">
+                      <div className="size-10 rounded-full bg-accent-soft grid place-items-center text-lg shrink-0" aria-hidden>{formatIcon(iv.format)}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">{iv.company} — Round {iv.round}{iv.role && <span className="text-muted font-normal"> · {iv.role}</span>}</p>
+                        <p className="text-xs text-muted mt-0.5">{formatDate(iv.interview_date)}{iv.interviewer_name && ` · ${iv.interviewer_name}`}</p>
+                        {iv.notes && <p className="text-xs text-muted mt-1 truncate">{iv.notes}</p>}
+                      </div>
+                      {iv.outcome && <Chip>{iv.outcome}</Chip>}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            ))
+          )}
+      </Card>
 
       {/* Log Interview Modal */}
       {modalOpen && (
@@ -242,7 +228,7 @@ export default function Interviews() {
                 value={form.company}
                 onChange={e => setForm(f => ({ ...f, company: e.target.value }))}
                 placeholder="Must match a company you've analyzed a JD for"
-                className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                className="w-full px-4 min-h-11 md:min-h-10 border border-line bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -253,7 +239,7 @@ export default function Interviews() {
                   min={1}
                   value={form.round}
                   onChange={e => setForm(f => ({ ...f, round: parseInt(e.target.value) || 1 }))}
-                  className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                  className="w-full px-4 min-h-11 md:min-h-10 border border-line bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
               <div>
@@ -261,7 +247,7 @@ export default function Interviews() {
                 <select
                   value={form.format}
                   onChange={e => setForm(f => ({ ...f, format: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                  className="w-full px-4 min-h-11 md:min-h-10 border border-line bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
                 >
                   {['phone', 'video', 'onsite', 'technical', 'other'].map(f => (
                     <option key={f} value={f}>{f}</option>
@@ -275,7 +261,7 @@ export default function Interviews() {
                 type="datetime-local"
                 value={form.interview_date}
                 onChange={e => setForm(f => ({ ...f, interview_date: e.target.value }))}
-                className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                className="w-full px-4 min-h-11 md:min-h-10 border border-line bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
             <div>
@@ -285,7 +271,7 @@ export default function Interviews() {
                 value={form.interviewer_name}
                 onChange={e => setForm(f => ({ ...f, interviewer_name: e.target.value }))}
                 placeholder="Jane Doe"
-                className="w-full px-4 py-2.5 border border-ink-900/10 bg-cream-100/50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                className="w-full px-4 min-h-11 md:min-h-10 border border-line bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
             <div>
@@ -295,17 +281,17 @@ export default function Interviews() {
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 rows={2}
                 placeholder="Anything worth remembering"
-                className="w-full px-4 py-3 border border-ink-900/10 bg-cream-100/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-gold-400 resize-none"
+                className="w-full px-4 py-3 border border-line bg-stone rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none"
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-ink-900/60 hover:bg-cream-200 rounded-full">
+              <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-muted hover:bg-stone rounded-lg">
                 Cancel
               </button>
               <button
                 onClick={submitInterview}
                 disabled={saving || !form.company.trim()}
-                className="px-4 py-2 bg-gold-400 text-ink-900 rounded-full text-sm font-bold hover:bg-gold-500 disabled:opacity-50"
+                className="px-4 py-2 bg-accent-hover text-white rounded-lg text-sm font-bold hover:bg-accent-deep disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Log Interview'}
               </button>

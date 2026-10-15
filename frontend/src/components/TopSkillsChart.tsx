@@ -20,14 +20,14 @@ export default function TopSkillsChart({ data }: Props) {
       {data.map(item => (
         <div
           key={item.skill}
-          className={`flex items-center gap-3 rounded-lg px-2 py-1.5 -mx-2 transition-colors ${hovered === item.skill ? 'bg-cream-100/70' : ''}`}
+          className={`flex items-center gap-3 rounded-lg px-2 py-1.5 -mx-2 transition-colors ${hovered === item.skill ? 'bg-stone' : ''}`}
           onMouseEnter={() => setHovered(item.skill)}
           onMouseLeave={() => setHovered(null)}
         >
           <span className="text-sm text-ink-900/70 w-24 shrink-0 truncate capitalize">{item.skill}</span>
           <div className="flex-1 h-4 flex items-center">
             <div
-              className="h-4 bg-gold-400 rounded-r-[4px]"
+              className="h-4 bg-accent rounded-r-[4px]"
               style={{ width: `${Math.max((item.count / maxCount) * 100, 4)}%` }}
             />
           </div>

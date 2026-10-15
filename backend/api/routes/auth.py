@@ -1,10 +1,11 @@
 import uuid
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from db.database import get_db
+from services import rate_limit
 from services.auth_service import (
     hash_password, verify_password, create_access_token,
     get_current_user_id, SESSION_COOKIE_NAME,
@@ -24,6 +25,22 @@ COOKIE_KWARGS = (
     {"samesite": "none", "secure": True} if IS_PRODUCTION
     else {"samesite": "lax", "secure": False}
 )
+
+
+def _is_claimable(email: str) -> bool:
+    """Existing profiles with no password (e.g. seeded demo data) can only be
+    claimed by signing up if their email is explicitly listed in
+    CLAIMABLE_EMAILS. Empty by default, so nobody can take over a profile they
+    don't own. Read per request so it can be switched on and off."""
+    allowed = {e.strip().lower() for e in os.getenv("CLAIMABLE_EMAILS", "").split(",") if e.strip()}
+    return email.strip().lower() in allowed
+
+
+# Rate limits: signups per address per hour; login attempts per address, and
+# failed attempts per account, over 15 minutes.
+SIGNUP_PER_IP = (10, 3600)
+LOGIN_PER_IP = (30, 900)
+LOGIN_FAILURES_PER_EMAIL = (10, 900)
 
 
 class SignupIn(BaseModel):
@@ -51,7 +68,8 @@ def _set_session_cookie(response: Response, user_id: str):
 
 
 @router.post("/signup")
-async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depends(get_db)):
+async def signup(payload: SignupIn, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    rate_limit.hit(f"signup:ip:{rate_limit.client_ip(request)}", *SIGNUP_PER_IP)
     name = payload.name.strip()
     if not name or len(payload.password) < 8:
         raise HTTPException(status_code=400, detail="Name is required and password must be at least 8 characters")
@@ -62,10 +80,13 @@ async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depen
 
     if existing:
         user_id, existing_hash, onboarding_completed = str(existing[0]), existing[1], existing[2]
-        if existing_hash:
+        # Same message whether the account is taken or merely unclaimable, so
+        # the response doesn't reveal which emails have profiles.
+        if existing_hash or not _is_claimable(payload.email):
             raise HTTPException(status_code=409, detail="An account with this email already exists")
-        # A profile row exists (e.g. pre-seeded demo data) but has never had
-        # a password set — claim it instead of creating a duplicate account.
+        # A profile row exists (e.g. pre-seeded demo data), has never had a
+        # password set, and its email is allow-listed — claim it instead of
+        # creating a duplicate account.
         await db.execute(text("""
             UPDATE user_profiles SET password_hash = :password_hash, name = :name,
                    university = :university, degree = :degree,
@@ -99,13 +120,17 @@ async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depen
 
 
 @router.post("/login")
-async def login(payload: LoginIn, response: Response, db: AsyncSession = Depends(get_db)):
+async def login(payload: LoginIn, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    failure_key = f"login-fail:email:{payload.email.lower()}"
+    rate_limit.hit(f"login:ip:{rate_limit.client_ip(request)}", *LOGIN_PER_IP)
+    rate_limit.check(failure_key, *LOGIN_FAILURES_PER_EMAIL)
     row = (await db.execute(text("""
         SELECT id, password_hash, name, onboarding_completed FROM user_profiles
         WHERE LOWER(email) = LOWER(:email) AND is_deleted = FALSE
     """), {"email": payload.email})).fetchone()
 
     if not row or not row[1] or not verify_password(payload.password, row[1]):
+        rate_limit.record(failure_key)
         raise HTTPException(status_code=401, detail="Incorrect email or password")
 
     user_id = str(row[0])

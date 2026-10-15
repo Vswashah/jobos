@@ -1,11 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from starlette.background import BackgroundTask
 from typing import List, Optional
 import sys
 import os
+import re
 import shutil
+import uuid
 from api.routes.auth import router as auth_router
 from api.routes.jobs import router as jobs_router
 from api.routes.profile import router as profile_router
@@ -28,6 +31,7 @@ from services.db_service import (
     get_user_profile, save_job, save_resume, log_activity
 )
 from services.auth_service import get_current_user_id
+from services import rate_limit
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
 
@@ -72,10 +76,30 @@ SKILLS_TEMPLATE = {
 
 
 class JDRequest(BaseModel):
-    jd_text: str
-    team_focus: Optional[str] = ""
-    company: Optional[str] = "Company"
-    role: Optional[str] = "Software Engineer Intern"
+    # Length caps keep a single request from carrying an enormous payload.
+    jd_text: str = Field(max_length=20_000)
+    team_focus: Optional[str] = Field(default="", max_length=500)
+    company: Optional[str] = Field(default="Company", max_length=200)
+    role: Optional[str] = Field(default="Software Engineer Intern", max_length=200)
+
+
+RESUME_DIR = "/tmp/jobos_resumes"
+LIBREOFFICE_TIMEOUT_SECONDS = 120
+
+
+def _safe_name(value: Optional[str], fallback: str) -> str:
+    """Filename-safe text for the download name: letters, digits, dot,
+    underscore and dash only, no leading or trailing punctuation."""
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", (value or "").strip()).strip("._-")[:60]
+    return cleaned or fallback
+
+
+def _remove_files(*paths: str) -> None:
+    for path in paths:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 @app.get("/")
 async def root():
@@ -85,7 +109,7 @@ async def root():
 async def health():
     return {"status": "healthy", "version": "1.0.0"}
 
-@app.post("/api/resumes/analyze")
+@app.post("/api/resumes/analyze", dependencies=[Depends(rate_limit.limit_user("analyze", 60, 3600))])
 async def analyze_jd(request: JDRequest, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     """Analyze JD — extract skills, match profile, rank projects"""
     # Fetch from DB
@@ -122,7 +146,7 @@ async def analyze_jd(request: JDRequest, user_id: str = Depends(get_current_user
     }
 
 
-@app.post("/api/resumes/generate-pdf")
+@app.post("/api/resumes/generate-pdf", dependencies=[Depends(rate_limit.limit_user("generate-pdf", 10, 3600))])
 async def generate_pdf_endpoint(request: JDRequest, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     """Full pipeline — analyze JD and generate tailored PDF resume."""
     import subprocess
@@ -152,53 +176,63 @@ async def generate_pdf_endpoint(request: JDRequest, user_id: str = Depends(get_c
     )
 
     # Step 2 — Generate DOCX
-    person_name = (user_profile.get("name") or "Resume").replace(' ', '_')
-    company = request.company.replace(' ', '_')
-    os.makedirs("/tmp/jobos_resumes", exist_ok=True)
-    # user_id prefix avoids two users' concurrent requests for the same
-    # company colliding on the same temp file path.
-    docx_path = f"/tmp/jobos_resumes/{user_id}_{person_name}_{company}.docx"
-    pdf_path = f"/tmp/jobos_resumes/{user_id}_{person_name}_{company}.pdf"
+    # Files on disk are named with a random id, never with user input; the
+    # readable name is only used for the download header.
+    person_name = _safe_name(user_profile.get("name"), "Resume")
+    company = _safe_name(request.company, "Company")
+    os.makedirs(RESUME_DIR, exist_ok=True)
+    file_id = uuid.uuid4().hex
+    docx_path = f"{RESUME_DIR}/{file_id}.docx"
+    pdf_path = f"{RESUME_DIR}/{file_id}.pdf"
 
     include_research = any(
         s in extracted["all_skills"]
         for s in ["pytorch", "scikit-learn", "langchain", "llm", "machine learning"]
     ) or "research" in (request.team_focus or "").lower()
 
-    generate_resume_autofit(
-        profile=user_profile or DEFAULT_PROFILE,
-        skills=SKILLS_TEMPLATE,
-        experience=selected_experience,
-        projects=selected_projects,
-        education=DEFAULT_EDUCATION,
-        research=DEFAULT_RESEARCH if include_research else None,
-        output_path=docx_path,
-        company_name=request.company,
-        role_name=request.role,
-    )
+    try:
+        generate_resume_autofit(
+            profile=user_profile or DEFAULT_PROFILE,
+            skills=SKILLS_TEMPLATE,
+            experience=selected_experience,
+            projects=selected_projects,
+            education=DEFAULT_EDUCATION,
+            research=DEFAULT_RESEARCH if include_research else None,
+            output_path=docx_path,
+            company_name=request.company,
+            role_name=request.role,
+        )
 
-    # Step 3 — Convert to PDF
-    soffice_bin = (
-        shutil.which("soffice")
-        or shutil.which("libreoffice")
-        or "/Applications/LibreOffice.app/Contents/MacOS/soffice"
-    )
-    subprocess.run([
-        soffice_bin,
-        "--headless", "--convert-to", "pdf",
-        "--outdir", "/tmp/jobos_resumes/",
-        docx_path
-    ], check=True)
+        # Step 3 — Convert to PDF (bounded, so a stuck conversion can't hang the server)
+        soffice_bin = (
+            shutil.which("soffice")
+            or shutil.which("libreoffice")
+            or "/Applications/LibreOffice.app/Contents/MacOS/soffice"
+        )
+        subprocess.run([
+            soffice_bin,
+            "--headless", "--convert-to", "pdf",
+            "--outdir", RESUME_DIR,
+            docx_path
+        ], check=True, capture_output=True, timeout=LIBREOFFICE_TIMEOUT_SECONDS)
 
-    # Step 4 — Save to DB and return
-    await save_resume(db, user_id, job_id=None, file_path=pdf_path,
-        skills_included=match["matching"],
-        projects_selected=[p["name"] for p in selected_projects],
-        experience_selected=[e["title"] for e in selected_experience])
-    await log_activity(db, user_id, "resume_generated", "resume", metadata={"company": request.company, "format": "pdf"})
+        # Step 4 — Save to DB
+        await save_resume(db, user_id, job_id=None, file_path=pdf_path,
+            skills_included=match["matching"],
+            projects_selected=[p["name"] for p in selected_projects],
+            experience_selected=[e["title"] for e in selected_experience])
+        await log_activity(db, user_id, "resume_generated", "resume", metadata={"company": request.company, "format": "pdf"})
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+        _remove_files(docx_path, pdf_path)
+        raise HTTPException(status_code=500, detail="Resume conversion failed. Please try again.")
+    except Exception:
+        _remove_files(docx_path, pdf_path)
+        raise
 
+    # The files are served once and then deleted; nothing reads them again.
     return FileResponse(
         path=pdf_path,
         filename=f"{person_name}_{company}.pdf",
-        media_type="application/pdf"
+        media_type="application/pdf",
+        background=BackgroundTask(_remove_files, docx_path, pdf_path),
     )

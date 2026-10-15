@@ -23,3 +23,14 @@ def client():
         })
         assert res.status_code == 200, f"Test user signup failed: {res.text}"
         yield c
+
+
+@pytest.fixture(autouse=True)
+def _rate_limits_off(monkeypatch):
+    """The suite signs up many users from one address; keep limits out of the
+    way unless a test turns them on (see test_security.py)."""
+    from services import rate_limit
+    monkeypatch.setenv("RATE_LIMIT_DISABLED", "true")
+    rate_limit.reset()
+    yield
+    rate_limit.reset()

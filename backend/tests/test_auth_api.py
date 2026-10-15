@@ -111,15 +111,16 @@ def test_logout_clears_session(auth_client):
     assert auth_client.get("/api/auth/me").status_code == 401
 
 
-def test_signup_claims_existing_passwordless_account(auth_client):
+def test_signup_claims_existing_passwordless_account(auth_client, monkeypatch):
     """A pre-existing profile row with no password (e.g. seeded demo data)
-    should be claimable by signing up with the same email, rather than
-    rejected as a duplicate — and its existing data should still be there."""
+    can be claimed by signing up with the same email only when that email is
+    listed in CLAIMABLE_EMAILS — and its existing data should still be there."""
     import psycopg2
     from db.database import DATABASE_URL
 
     email = _unique_email()
     seeded_user_id = str(uuid.uuid4())
+    monkeypatch.setenv("CLAIMABLE_EMAILS", email)
 
     # A synchronous connection here — reusing the app's own async engine
     # from test code hits the same cross-event-loop asyncpg conflict as a
